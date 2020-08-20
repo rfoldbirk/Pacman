@@ -1,24 +1,25 @@
 import entity, random
 
 
-class Head:
+class Head(entity.Entity):
 	def __init__(self):
 		rx = random.randint(0, 300)
 		ry = random.randint(0, 300)
-		self.entity = entity.Entity('./assets/head.png', rx, ry)
+		super().__init__('./assets/head.png')
 
-	def draw(self):
-		self.entity.draw()
+		self.velocity = { 'x': 30, 'y': 55 }
 
 	def update(self, dt):
-		self.entity.update(dt)
+		self.x += 70*dt
+
+		super().update(dt)
 		
 	def onKeyPress(self, symbol, modifiers):
 		print('Head is being activated :)')
 		if symbol == 65362: # up arrow
-			if self.yVel < 0: 
-				self.yVel = -self.xVel
+			if self.velocity['y'] < 0: 
+				self.velocity['y'] = -self.velocity['x']
 
 		if symbol == 65364: # down arrow
-			if self.yVel > 0: 
-				self.yVel = -self.xVel
+			if self.velocity['y'] > 0: 
+				self.velocity['y'] = -self.velocity['x']
