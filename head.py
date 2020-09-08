@@ -3,23 +3,26 @@ import entity, random
 
 class Head(entity.Entity):
 	def __init__(self):
-		rx = random.randint(0, 300)
-		ry = random.randint(0, 300)
-		super().__init__('./assets/head.png')
+		rx, ry = random.randint(50, 300), random.randint(50, 300)
 
-		self.velocity = { 'x': 30, 'y': 55 }
-
-	def update(self, dt):
-		self.x += 70*dt
-
-		super().update(dt)
+		speed = 2.5
 		
-	def onKeyPress(self, symbol, modifiers):
-		print('Head is being activated :)')
-		if symbol == 65362: # up arrow
-			if self.velocity['y'] < 0: 
-				self.velocity['y'] = -self.velocity['x']
 
-		if symbol == 65364: # down arrow
-			if self.velocity['y'] > 0: 
-				self.velocity['y'] = -self.velocity['x']
+		right = entity.Sprite('./assets/pacman.png', grid={'rows': 4, 'columns': 3}, beginFrame=9, endFrame=11, animationSpeed=speed, animationBounce=True ) 
+		left = entity.Sprite('./assets/pacman.png', grid={'rows': 4, 'columns': 3}, beginFrame=6, endFrame=8, animationSpeed=speed, animationBounce=True ) 
+		up = entity.Sprite('./assets/pacman.png', grid={'rows': 4, 'columns': 3}, beginFrame=3, endFrame=5, animationSpeed=speed, animationBounce=True )
+		down = entity.Sprite('./assets/pacman.png', grid={'rows': 4, 'columns': 3}, beginFrame=0, endFrame=2, animationSpeed=speed, animationBounce=True )
+		
+		headPNG = entity.Sprite('./assets/head.png', type='Image', correspondingState='head')
+		
+		super().__init__(rx, ry, sprites = [ right, left, down, up ])
+		
+		# self.velocity = { 'x': 30, 'y': 0 }
+
+
+	def onKeyPress(self, symbol, modifiers):
+		if symbol == 65362: # up arrow
+			super().setSprite('head')
+
+		if symbol == 65364: # hopefully down arrow
+			super().setSprite('down')
