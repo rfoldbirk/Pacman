@@ -1,4 +1,4 @@
-import pyglet, head
+import pyglet, head, maze
 
 window = pyglet.window.Window()
 
@@ -6,6 +6,7 @@ window = pyglet.window.Window()
 # Event loop
 Entities = [] # All entities
 Entities.append( head.Head() )
+Entities.append( maze.Maze() )
 
 
 
