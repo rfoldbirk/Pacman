@@ -1,13 +1,17 @@
-import pyglet, head, maze
+import pyglet, pgCharacter, maze
 
-window = pyglet.window.Window()
+window = pyglet.window.Window(232, 256)
 
+
+MAZE = maze.Maze()
+PACMAN = pgCharacter.pgCharacter(MAZE)
+BLINKY = pgCharacter.pgCharacter(MAZE, PACMAN)
 
 # Event loop
 Entities = [] # All entities
-Entities.append( head.Head() )
-Entities.append( maze.Maze() )
-
+Entities.append( MAZE )
+Entities.append( PACMAN )
+Entities.append( pgCharacter.pgCharacter(MAZE, PACMAN) )
 
 
 @window.event
@@ -31,6 +35,7 @@ def callFuncIfItExists(func, *args):
 
 
 if __name__ == '__main__':
+
 	# Kalder funktionen on_update 144 gange i sekundet
 	pyglet.clock.schedule_interval(on_update, 1/144.0)
 	pyglet.app.run()

@@ -11,21 +11,25 @@ class Entity:
 		self.x, self.y = x, y
 		self.rotation = rotation
 		self.velocity = { 'x': 0, 'y': 0 }
-		
-		self.state = state
+		self.state = ''
 		self.states = {}
 
 		for sprite in sprites:
 			self.states[sprite.correspondingState] = sprite
 		
+
 		# vælger det rigtige sprite ud fra state
-		self.setSprite(self.state)
+		self.setSprite(state)
 		
 		# dette bliver vigtigt når man skal regne på kollision.
 		self.lastFrame = { 'x': x, 'y': y, 'velocity': self.velocity, 'size': self.size, 'rotation': 0 }
 
 	
 	def setSprite(self, state):
+		if state == self.state: 
+			return
+
+		self.state = state
 		self.currentSprite = self.states[ state ]
 		self.currentSprite.resetFrames()
 		self.size = self.currentSprite.size
@@ -61,6 +65,8 @@ class Sprite:
 		self.source = source
 		self.type = type
 		self.image = image.load(source)
+
+		self.play = True
 
 		self.size = { 'width': self.image.width, 'height': self.image.height }
 		
@@ -98,7 +104,7 @@ class Sprite:
 
 
 	def update(self, dt):
-		if self.type == 'SpriteSheet':
+		if self.type == 'SpriteSheet' and self.play:
 			self.timer['count'] += dt * self.timer['animationSpeed']
 			if self.timer['count'] >= 1:
 				self.timer['count'] = 0
