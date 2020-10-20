@@ -2,9 +2,11 @@ import entity, random, math
 
 
 class pgCharacter(entity.Entity):
-	def __init__(self, copy_of_maze, copy_of_pacman=False):
+	def __init__(self, copy_of_maze, copy_of_pacman=False, spriteName="pacman"):
 		self.MAZE = copy_of_maze
 		self.PACMAN = copy_of_pacman
+
+		self.name = spriteName
 
 		# Position
 		rx, ry = 8+7*12+16, 8+8*12
@@ -12,16 +14,14 @@ class pgCharacter(entity.Entity):
 			ry = 8+10*12
 
 		# Sprites
-		sName = "pacman"
 		sColumns = 3
 		if bool(copy_of_pacman): 
-			sName = "blinky"
 			sColumns = 2
 
-		right = self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'right', spriteName=sName, columns=sColumns)
-		left = self.makeDesignedSprite(sColumns*2, sColumns*2+(sColumns-1), 'left', spriteName=sName, columns=sColumns)
-		up = self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'up', spriteName=sName, columns=sColumns)
-		down = self.makeDesignedSprite(0, sColumns-1, 'down', spriteName=sName, columns=sColumns)
+		right = self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'right', spriteName=spriteName, columns=sColumns)
+		left = self.makeDesignedSprite(sColumns*2, sColumns*2+(sColumns-1), 'left', spriteName=spriteName, columns=sColumns)
+		up = self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'up', spriteName=spriteName, columns=sColumns)
+		down = self.makeDesignedSprite(0, sColumns-1, 'down', spriteName=spriteName, columns=sColumns)
 		
 		
 
@@ -261,6 +261,7 @@ class pgCharacter(entity.Entity):
 
 	def enemy_setTarget(self, xTile=-1, yTile=-1):
 		self.altTarget = { "x": xTile, "y": yTile }
+		print(self.name, self.altTarget)
 
 	
 	def useAltTarget(self):
