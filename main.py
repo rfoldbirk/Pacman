@@ -1,7 +1,7 @@
 import pyglet, pgCharacter, maze
 
-window = pyglet.window.Window(232, 256)
-
+window = pyglet.window.Window(232, 296)
+pyglet.gl.glClearColor(0,0,0,0)
 
 MAZE = maze.Maze()
 PACMAN = pgCharacter.pgCharacter(MAZE)
@@ -34,6 +34,7 @@ def on_key_press(symbol, modifiers):
 @window.event
 def on_draw():
 	window.clear()
+	#Entities[1].draw()
 	callFuncIfItExists('draw')
 
 

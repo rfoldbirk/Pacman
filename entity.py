@@ -1,4 +1,4 @@
-from pyglet import image
+from pyglet import image, sprite
 
 class Entity:
 	def __init__(self,  
@@ -94,7 +94,11 @@ class Sprite:
 
 
 	def draw(self, x, y):
-		self.image.blit(x, y)
+		#self.image.blit(x, y)
+
+		#TODO: Bedre sprite system
+		spr = sprite.Sprite(self.image, x=x, y=y)
+		spr.draw()
 
 
 	def resetFrames(self):
