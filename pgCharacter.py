@@ -23,7 +23,11 @@ class pgCharacter(entity.Entity):
 		up = self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'up', spriteName=spriteName, columns=sColumns)
 		down = self.makeDesignedSprite(0, sColumns-1, 'down', spriteName=spriteName, columns=sColumns)
 		
-		
+		if bool(copy_of_pacman):
+			rightDead = self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'right-dead', spriteName='scared2', columns=sColumns)
+			leftDead = self.makeDesignedSprite(sColumns*2, sColumns*2+(sColumns-1), 'left-dead', spriteName='scared2', columns=sColumns)
+			upDead = self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'up-dead', spriteName='scared2', columns=sColumns)
+			downDead = self.makeDesignedSprite(0, sColumns-1, 'down-dead', spriteName='scared2', columns=sColumns)
 
 		# AI settings
 		self.isEnemy = bool(copy_of_pacman)
@@ -57,7 +61,9 @@ class pgCharacter(entity.Entity):
 		# få positionen på kortet
 
 		if self.direction != "":
-			self.setSprite(self.direction)
+			suffix = ''
+			if self.isDead: suffix = '-dead'
+			self.setSprite(self.direction+suffix)
 			movement = self.speed * dt
 
 			self.needToMove -= movement
@@ -90,17 +96,10 @@ class pgCharacter(entity.Entity):
 			px, py = self.PACMAN.getTilePosition()
 			if px >= xTile >= px:
 				if py >= yTile >= py:
-					if self.PACMAN.cheeseTimer > 0:
-						self.isDead = True
-						self.setSprite()
+					self._onCollisionWithPacman()
 
 		super().update(dt)
 
-
-
-	def setNeedToMove(self, amount):
-			self.NEEDtoMOVE = amount
-			self.needToMove = amount
 
 
 
@@ -114,6 +113,120 @@ class pgCharacter(entity.Entity):
 
 
 
+	# Interaktion
+	def onKeyPress(self, symbol, modifiers):
+
+		#! SKAL FJERNES!
+
+		if symbol == 105:
+			if modifiers:
+				self.y += 12
+			else:
+				self.y += 16
+		if symbol == 106:
+			if modifiers:
+				self.x -= 12
+			else:
+				self.x -= 16
+
+		if symbol == 107: # K
+			self.correct = True
+
+		if symbol == 108: # L
+			index, l, r, u, d = self.MAZE.getPossibleDirections(self.x+16, self.y+24)
+			_x, _y = self.MAZE.indexToTile( index )
+			print(self.MAZE.tileToPosition(_x, _y))
+
+
+		if self.isEnemy and symbol == 110: # N
+			self.goThroughDoor = True
+			self.enemy_setTarget(8, 11)
+
+		#! -------------
+
+		if self.isEnemy: return # ignorer alle inputs hvis denne entity er en fjende.
+
+		if symbol == 112: # P
+			self.MAZE.getPossibleDirections(self.x+16, self.y+24, True)
+
+		if symbol == 109: # M
+			self.keepMoving = not self.keepMoving
+			if self.keepMoving and self.isEnemy: self._move("random")
+
+		if symbol == 65362: # up arrow
+			self.requestMove("up")
+
+		if symbol == 65364: # down arrow
+			self.requestMove("down")
+
+		if symbol == 65361: # left arrow
+			self.requestMove("left")
+
+		if symbol == 65363: # right arrow
+			self.requestMove("right")
+
+
+
+	
+	
+	# Funktioner, der bliver kaldt automatisk.
+	def _enemy_chooseDirection(self):
+		#* Fjendtlige bevægelser
+		index, l, r, u, d = self.MAZE.getPossibleDirections(self.x+16, self.y+24, False)
+
+		_dirs = [l, r, u, d]
+		_posDirs = ['left', 'right', 'up', 'down']
+		amountOfDirections = 0
+		posDirs = []
+		
+		_i = 0
+		for _dir in _dirs:
+			if (_dir > 1 or _dir < int(self.goThroughDoor)) and _posDirs[_i] != self.getOppositeDirection( self.lastDirection ):
+				amountOfDirections += 1
+				posDirs.append(_posDirs[_i])
+
+			_i += 1
+
+		if amountOfDirections == 1:
+			self._move( ignoreDirection=self.getOppositeDirection( self.lastDirection ) )
+		else:
+			xTile, yTile, index = self.MAZE.getXYTileFromPos(self.x+16, self.y+24, returnIndex=True)
+			lx, ly, rx, ry, ux, uy, dx, dy = self.MAZE.getTilesAroundTile(xTile, yTile, index, convertToTiles=True)
+			tilesAround = [lx, ly, rx, ry, ux, uy, dx, dy]
+
+			# Find den korteste rute mod målet
+			cDistance = 1000000 #? det skal bare være et højt tal
+			cDirection = ""
+
+			px, py = self.PACMAN.getTilePosition()
+			if self.getAltTarget():
+				px, py = self.altTarget["x"], self.altTarget["y"]
+
+			for pdir in posDirs:
+				i = _posDirs.index(pdir)
+				gx, gy = tilesAround[i*2], tilesAround[i*2+1]
+				
+				deltaX = abs(gx - px)
+				deltaY = abs(gy - py)
+
+				distance = math.pow(deltaX, 2) + math.pow(deltaY, 2)
+				if distance < cDistance: 
+					cDistance = distance
+					cDirection = pdir
+
+			if xTile == self.altTarget["x"] and yTile == self.altTarget["y"]:
+				if (not self.isDead) and self.goThroughDoor:
+					self.goThroughDoor = False
+					self.enemy_setTarget()
+
+			if xTile == 8 and yTile == 10 and self.isDead:
+				self.goThroughDoor = True
+				self.isDead = True
+			
+
+			self._move( preferedDirection=cDirection, ignoreDirection=self.getOppositeDirection( self.lastDirection ) )
+		
+	
 	def _move(self, preferedDirection="random", ignoreDirection=""):
 
 		#* bindestregen betyder at _move ikke bliver kaldt direkte, men derimod det en funktion, 
@@ -205,141 +318,36 @@ class pgCharacter(entity.Entity):
 			self.setNeedToMove(moveHorizontal)
 	
 
-
-	def onKeyPress(self, symbol, modifiers):
-
-		#! SKAL FJERNES!
-
-		if symbol == 105:
-			if modifiers:
-				self.y += 12
-			else:
-				self.y += 16
-		if symbol == 106:
-			if modifiers:
-				self.x -= 12
-			else:
-				self.x -= 16
-
-		if symbol == 107: # K
-			self.correct = True
-
-		if symbol == 108: # L
-			index, l, r, u, d = self.MAZE.getPossibleDirections(self.x+16, self.y+24)
-			_x, _y = self.MAZE.indexToTile( index )
-			print(self.MAZE.tileToPosition(_x, _y))
-
-
-		if self.isEnemy and symbol == 110: # N
-			self.goThroughDoor = True
-			self.enemy_setTarget(8, 11)
-
-		#! -------------
-
-		if self.isEnemy: return # ignorer alle inputs hvis denne entity er en fjende.
-
-		if symbol == 112: # P
-			self.MAZE.getPossibleDirections(self.x+16, self.y+24, True)
-
-		if symbol == 109: # M
-			self.keepMoving = not self.keepMoving
-			if self.keepMoving and self.isEnemy: self._move("random")
-
-		if symbol == 65362: # up arrow
-			self.requestMove("up")
-
-		if symbol == 65364: # down arrow
-			self.requestMove("down")
-
-		if symbol == 65361: # left arrow
-			self.requestMove("left")
-
-		if symbol == 65363: # right arrow
-			self.requestMove("right")
-
-
-
+	def _onCollisionWithPacman(self):
+		if self.PACMAN.cheeseTimer > 0:
+			self.isDead = True
+			self.setSprite('scared2')
+	
+	# Setters
 	def enemy_setTarget(self, xTile=-1, yTile=-1):
 		self.altTarget = { "x": xTile, "y": yTile }
 		print(self.name, self.altTarget)
 
 	
-	def useAltTarget(self):
-		if self.altTarget["x"] == -1 or self.altTarget["y"] == -1: return False
-		return True
+	
+	def setNeedToMove(self, amount):
+		self.NEEDtoMOVE = amount
+		self.needToMove = amount
 
 
-
-	def _enemy_chooseDirection(self):
-		#* Fjendtlige bevægelser
-		index, l, r, u, d = self.MAZE.getPossibleDirections(self.x+16, self.y+24, False)
-
-		_dirs = [l, r, u, d]
-		_posDirs = ['left', 'right', 'up', 'down']
-		amountOfDirections = 0
-		posDirs = []
-		
-		_i = 0
-		for _dir in _dirs:
-			if (_dir > 1 or _dir < int(self.goThroughDoor)) and _posDirs[_i] != self.getOppositeDirection( self.lastDirection ):
-				amountOfDirections += 1
-				posDirs.append(_posDirs[_i])
-
-			_i += 1
-
-		if amountOfDirections == 1:
-			self._move( ignoreDirection=self.getOppositeDirection( self.lastDirection ) )
-		else:
-			xTile, yTile, index = self.MAZE.getXYTileFromPos(self.x+16, self.y+24, returnIndex=True)
-			lx, ly, rx, ry, ux, uy, dx, dy = self.MAZE.getTilesAroundTile(xTile, yTile, index, convertToTiles=True)
-			tilesAround = [lx, ly, rx, ry, ux, uy, dx, dy]
-
-			# Find den korteste rute mod målet
-			cDistance = 1000000 #? det skal bare være et højt tal
-			cDirection = ""
-
-			px, py = self.PACMAN.getTilePosition()
-			if self.useAltTarget():
-				px, py = self.altTarget["x"], self.altTarget["y"]
-
-			for pdir in posDirs:
-				i = _posDirs.index(pdir)
-				gx, gy = tilesAround[i*2], tilesAround[i*2+1]
-				
-				deltaX = abs(gx - px)
-				deltaY = abs(gy - py)
-
-				distance = math.pow(deltaX, 2) + math.pow(deltaY, 2)
-				if distance < cDistance: 
-					cDistance = distance
-					cDirection = pdir
-
-			if xTile == self.altTarget["x"] and yTile == self.altTarget["y"]:
-				if (not self.isDead) and self.goThroughDoor:
-					self.goThroughDoor = False
-					self.enemy_setTarget()
-
-			if xTile == 8 and yTile == 10 and self.isDead:
-				self.goThroughDoor = True
-				self.isDead = True
-			
-
-			self._move( preferedDirection=cDirection, ignoreDirection=self.getOppositeDirection( self.lastDirection ) )
-		
-
-
-
-	def makeDesignedSprite(self, beginFrame, endFrame, state, spriteName="pacman", rows=4, columns=3, speed=9):
-		return entity.Sprite(f'./assets/{spriteName}.png', correspondingState=state, grid={'rows': rows, 'columns': columns}, beginFrame=beginFrame, endFrame=endFrame, animationSpeed=speed, animationBounce=True )
-
-
-
+	# Getters
 	def getTilePosition(self):
 		index, l, r, u, d = self.MAZE.getPossibleDirections(self.x+16, self.y+24)
 		return self.MAZE.indexToTile( index )
+	
 
 
+	def getAltTarget(self):
+		if self.altTarget["x"] == -1 or self.altTarget["y"] == -1: return False
+		return self.altTarget
 
+
+	
 	def getOppositeDirection(self, direction):
 		if direction == "right":
 			return "left"
@@ -349,3 +357,10 @@ class pgCharacter(entity.Entity):
 			return "down"
 		elif direction == "down":
 			return "up"
+
+	# Specielle funktioner som kun bliver kaldt en gang
+	def makeDesignedSprite(self, beginFrame, endFrame, state, spriteName="pacman", rows=4, columns=3, speed=9):
+		return entity.Sprite(f'./assets/{spriteName}.png', correspondingState=state, grid={'rows': rows, 'columns': columns}, beginFrame=beginFrame, endFrame=endFrame, animationSpeed=speed, animationBounce=True )
+
+
+	
