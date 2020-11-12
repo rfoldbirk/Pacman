@@ -10,6 +10,9 @@ class Maze(entity.Entity):
 		# 3: dots, to be eaten
 		# 4: ingenting
 
+		self.maxLevel = 10
+		self.level = 0
+
 		# 18x19
 		self.grid = [
 			2, 3, 3, 3, 3, 3, 3, 3, 1, 3, 3, 3, 3, 3, 3, 3, 2,

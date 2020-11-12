@@ -1,17 +1,3 @@
-# Installation
+# Dependencies
 
-Opret et virtuel environment:
-`python3 -m venv env`
-
-Aktivering af venv:
-`env/Scripts/activate`
-
-Installer pyglet:
-`pip install pyglet`
-
-Deaktivering: `deactivate`
-
-
-
-Kørsel af program:
-`python main.py`
+[Pyglet](http://pyglet.org/) `pip install pyglet`
