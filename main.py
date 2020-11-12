@@ -2,21 +2,21 @@ import pyglet, pgCharacter, maze, events
 
 window = pyglet.window.Window(232, 296)
 x, y = window.get_location()
-window.set_location(x+600, y)
+window.set_location(x+600-30, y)
 pyglet.gl.glClearColor(0,0,0,0)
 
 MAZE = maze.Maze()
 PACMAN = pgCharacter.pgCharacter(MAZE)
-BLINKY = pgCharacter.pgCharacter(MAZE, PACMAN)
+BLINKY = pgCharacter.pgCharacter(MAZE, PACMAN, "blinky")
 
 # Event loop
 Entities = [] # All entities
 Entities.append( MAZE )
 Entities.append( PACMAN )
-Entities.append( pgCharacter.pgCharacter(MAZE, PACMAN, "blinky") )
+Entities.append( BLINKY )
 Entities.append( pgCharacter.pgCharacter(MAZE, PACMAN, "pinky") )
-# Entities.append( pgCharacter.pgCharacter(MAZE, PACMAN, "inky") )
-# Entities.append( pgCharacter.pgCharacter(MAZE, PACMAN, "clyde") )
+Entities.append( pgCharacter.pgCharacter(MAZE, PACMAN, "inky", BLINKY) )
+Entities.append( pgCharacter.pgCharacter(MAZE, PACMAN, "clyde") )
 
 Entities.append( events.EventSystem(Entities) )
 

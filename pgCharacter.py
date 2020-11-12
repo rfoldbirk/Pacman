@@ -10,9 +10,10 @@ enemySpawnTimes = { 'blinky': 0, 'pinky': 10, 'inky': 20, 'clyde': 30 }
 
 
 class pgCharacter(entity.Entity):
-	def __init__(self, copy_of_maze, copy_of_pacman=False, spriteName='pacman'):
+	def __init__(self, copy_of_maze, copy_of_pacman=False, spriteName='pacman', copy_of_blinky=False):
 		self.MAZE = copy_of_maze
 		self.PACMAN = copy_of_pacman
+		self.BLINKY = copy_of_blinky
 
 		self.name = spriteName
 		self.isEnemy = self.name != 'pacman'
@@ -46,7 +47,7 @@ class pgCharacter(entity.Entity):
 		if self.isEnemy: self.timer = 10 * enemyNames.index( self.name ) + 10
 		
 		self.altTarget = { 'x': -1, 'y': -1 }
-		self.mode = 'scatter'
+		self.mode = 'chase'
 
 		self.setNeedToMove(0) # Holder styr på hvor meget spilleren mangler at bevæge sig for at være færdig.
 		
@@ -60,7 +61,7 @@ class pgCharacter(entity.Entity):
 		if self.isEnemy: self.speed -= self.speed/10 # Så spøgelser er lidt langsommere end PACMAN.
 
 		# Debug settings
-		self.keepMoving = False #TODO: Fjern når du er færdig med at debugge
+		self.keepMoving = True #TODO: Fjern når du er færdig med at debugge
 		
 
 		# Entity init, meget vigtigt.
@@ -69,6 +70,9 @@ class pgCharacter(entity.Entity):
 		self.currentSprite.play = False
 		if self.isEnemy:
 			self._move()
+
+
+
 
 
 	def update(self, dt):
@@ -118,7 +122,7 @@ class pgCharacter(entity.Entity):
 			# 	self.timer -= dt
 			# 	if self.timer <= 0:
 			# 		self.timer = None
-			# 		self.setMode()
+			# 		self.setMode() # setMode uden et argument skifter automatisk korrekt.
 
 
 			# Kollision
@@ -149,19 +153,20 @@ class pgCharacter(entity.Entity):
 
 		if symbol == 105: # I
 			if self.name == 'blinky':
-				self.setNextMove('up')
+				print(self.PACMAN.x, self.PACMAN.y)
+				print(self.MAZE.tileToPosition(enemyHomes[self.name][0], enemyHomes[self.name][1]))
 
 		if symbol == 106: # J
-			if self.name == 'blinky':
-				self.setNextMove('left')
+			if self.isEnemy:
+				self.setMode('frightened')
 
 		if symbol == 107: # K
-			if self.name == 'blinky':
-				self.setNextMove('down')
+			if self.isEnemy:
+				self.setMode('scatter') # aka. go to home
 
 		if symbol == 108: # L
-			if self.name == 'blinky':
-				self.setNextMove('right')
+			if self.isEnemy:
+				self.setMode('chase')
 
 
 		#! -------------
@@ -172,8 +177,7 @@ class pgCharacter(entity.Entity):
 		# 	self.MAZE.getPossibleDirections(self.x+16, self.y+24, True)
 
 		if symbol == 109: # M
-			self.keepMoving = not self.keepMoving
-			if self.keepMoving and self.isEnemy: self._move('random')
+			self.MAZE.getPossibleDirections(self.x+16, self.y+24, True)
 
 		if symbol == 65362: # up arrow
 			self.setNextMove('up')
@@ -213,11 +217,28 @@ class pgCharacter(entity.Entity):
 
 
 	def _enemy_chooseDirection(self):
-		target = { 'x': self.PACMAN.x, 'y': self.PACMAN.y }
 
+		target = { 'x': self.PACMAN.x, 'y': self.PACMAN.y }
+		
 		if self.mode == 'scatter':
 			target = self.MAZE.tileToPosition(enemyHomes[self.name][0], enemyHomes[self.name][1])
+		elif self.mode == 'chase':
+			# specielle bevægelses mønstre.
+			if self.name == 'pinky':
+				target = self.getTargetWithOffset(target, offset=4)
+			
+			elif self.name == 'inky':
+				target = self.getTargetWithOffset(target, offset=2)
+				vector = { 
+					'x': target['x'] - abs(target['x'] - self.BLINKY.x), 
+					'y': target['y'] - abs(target['y'] - self.BLINKY.y)
+				}
 
+				target = vector
+			elif 'clyde':
+				dist = math.pow(self.PACMAN.x - self.x, 2) + math.pow(self.PACMAN.y - self.y, 2)
+				if dist/math.pow(12, 2) < 35:
+					target = self.MAZE.tileToPosition(enemyHomes[self.name][0], enemyHomes[self.name][1])
 
 		index, l, r, u, d = self.MAZE.getPossibleDirections(self.x+16, self.y+24, False)
 		tileX, tileY = self.MAZE.indexToTile(index)
@@ -361,11 +382,10 @@ class pgCharacter(entity.Entity):
 			preferedDirection = posDirs.index(preferedDirection)
 		else: # Hvis ikke, vælger den bare en tilfældig retning :/
 			if self.isEnemy:
-				print(posDirs)
-				# if len(posDirs) == 0:
-				# 	preferedDirection = dirsStrs.index(self.getOppositeDirection(self.lastDirection))
-				# else:
-				preferedDirection = random.randint(0, len(posDirs)-1)
+				if len(posDirs) == 0:
+					preferedDirection = dirsStrs.index(self.getOppositeDirection(self.lastDirection))
+				else:
+					preferedDirection = random.randint(0, len(posDirs)-1)
 			elif self.lastDirection in posDirs:
 				preferedDirection = dirsStrs.index(self.getOppositeDirection(self.lastDirection))
 			else:
@@ -422,6 +442,19 @@ class pgCharacter(entity.Entity):
 		index, l, r, u, d = self.MAZE.getPossibleDirections(self.x+16, self.y+24)
 		return self.MAZE.indexToTile( index )
 	
+
+	def getTargetWithOffset(self, target, offset):
+		tileSize = 12
+		if self.PACMAN.lastDirection == 'left':
+			target['x'] -= tileSize * offset
+		elif self.PACMAN.lastDirection == 'right':
+			target['x'] += tileSize * offset
+		elif self.PACMAN.lastDirection == 'down':
+			target['y'] -= tileSize * offset
+		elif self.PACMAN.lastDirection == 'up':
+			target['y'] += tileSize * offset
+
+		return target
 
 
 	def getAltTarget(self):
