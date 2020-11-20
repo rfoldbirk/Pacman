@@ -16,7 +16,7 @@ class pgCharacter(entity.Entity):
 		self.BLINKY = copy_of_blinky
 
 		self.name = spriteName
-		self.isEnemy = self.name != 'pacman'
+		self.isEnemy = self.name in enemyNames
 
 		# Position
 		rx, ry = 8+7*12+16, 8+8*12
@@ -28,16 +28,25 @@ class pgCharacter(entity.Entity):
 		if self.isEnemy: 
 			sColumns = 2
 
-		right = self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'right', spriteName=spriteName, columns=sColumns)
-		left = self.makeDesignedSprite(sColumns*2, sColumns*2+(sColumns-1), 'left', spriteName=spriteName, columns=sColumns)
-		up = self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'up', spriteName=spriteName, columns=sColumns)
-		down = self.makeDesignedSprite(0, sColumns-1, 'down', spriteName=spriteName, columns=sColumns)
+		spritesArr = []
+
+		spritesArr.append(self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'right', spriteName=spriteName, columns=sColumns))
+		spritesArr.append(self.makeDesignedSprite(sColumns*2, sColumns*2+(sColumns-1), 'left', spriteName=spriteName, columns=sColumns))
+		spritesArr.append(self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'up', spriteName=spriteName, columns=sColumns))
+		spritesArr.append(self.makeDesignedSprite(0, sColumns-1, 'down', spriteName=spriteName, columns=sColumns))
 		
 		if self.isEnemy:
-			rightDead = self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'right-dead', spriteName='scared2', columns=sColumns)
-			leftDead = self.makeDesignedSprite(sColumns*2, sColumns*2+(sColumns-1), 'left-dead', spriteName='scared2', columns=sColumns)
-			upDead = self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'up-dead', spriteName='scared2', columns=sColumns)
-			downDead = self.makeDesignedSprite(0, sColumns-1, 'down-dead', spriteName='scared2', columns=sColumns)
+			# Frightened
+			spritesArr.append(self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'rightFrightened', spriteName='frightened2', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(sColumns*2, sColumns*2+(sColumns-1), 'leftFrightened', spriteName='frightened2', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'upFrightened', spriteName='frightened2', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(0, sColumns-1, 'downFrightened', spriteName='frightened2', columns=sColumns))
+
+			# Dead
+			spritesArr.append(self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'rightDead', spriteName='dead', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(sColumns*2, sColumns*2+(sColumns-1), 'leftDead', spriteName='dead', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'upDead', spriteName='dead', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(0, sColumns-1, 'downDead', spriteName='dead', columns=sColumns))
 
 
 		# AI settings
@@ -46,8 +55,7 @@ class pgCharacter(entity.Entity):
 
 		if self.isEnemy: self.timer = 10 * enemyNames.index( self.name ) + 10
 		
-		self.altTarget = { 'x': -1, 'y': -1 }
-		self.mode = 'chase'
+		self.mode = 'scatter'
 
 		self.setNeedToMove(0) # Holder styr på hvor meget spilleren mangler at bevæge sig for at være færdig.
 		
@@ -60,12 +68,14 @@ class pgCharacter(entity.Entity):
 		self.speed = 70
 		if self.isEnemy: self.speed -= self.speed/10 # Så spøgelser er lidt langsommere end PACMAN.
 
+		self.originalSpeed = self.speed
+
 		# Debug settings
 		self.keepMoving = True #TODO: Fjern når du er færdig med at debugge
 		
 
 		# Entity init, meget vigtigt.
-		super().__init__(rx, ry, sprites = [ right, left, down, up ], state='left')
+		super().__init__(rx, ry, sprites = spritesArr, state='left')
 
 		self.currentSprite.play = False
 		if self.isEnemy:
@@ -76,11 +86,20 @@ class pgCharacter(entity.Entity):
 
 
 	def update(self, dt):
+		if self.mode == 'dead':
+			self.speed = self.originalSpeed * 1.5
+		else:
+			self.speed = self.originalSpeed
+
 		# få positionen på kortet
 
 		if self.direction != '':
 			suffix = ''
-			if self.isDead: suffix = '-dead'
+			if self.isDead: 			suffix = 'Dead'
+			if self.mode == 'frightened': 	suffix = 'Frightened'
+
+			
+			
 			self.setSprite(self.direction+suffix)
 			movement = self.speed * dt
 
@@ -147,14 +166,10 @@ class pgCharacter(entity.Entity):
 			if self.isEnemy:
 				self.setMode('frightened')
 
-		if symbol == 112: # P
-			if self.isEnemy:
-				self._enemy_chooseDirection()
 
 		if symbol == 105: # I
-			if self.name == 'blinky':
-				print(self.PACMAN.x, self.PACMAN.y)
-				print(self.MAZE.tileToPosition(enemyHomes[self.name][0], enemyHomes[self.name][1]))
+			if self.isEnemy:
+				self.setMode('dead')
 
 		if symbol == 106: # J
 			if self.isEnemy:
@@ -173,8 +188,8 @@ class pgCharacter(entity.Entity):
 
 		if self.isEnemy: return # ignorer alle inputs hvis denne entity er en fjende.
 
-		# if symbol == 112: # P
-		# 	self.MAZE.getPossibleDirections(self.x+16, self.y+24, True)
+		if symbol == 112: # P
+			self.isDead = True
 
 		if symbol == 109: # M
 			self.MAZE.getPossibleDirections(self.x+16, self.y+24, True)
@@ -205,6 +220,7 @@ class pgCharacter(entity.Entity):
 		# 4. dead
 
 		if preferedMode == 'switch':
+			self.isDead = False
 			self.setNextMove( self.getOppositeDirection(self.lastDirection) )
 
 			if self.mode == 'scatter':
@@ -214,13 +230,21 @@ class pgCharacter(entity.Entity):
 
 		else:
 			self.mode = preferedMode
+			if self.mode == 'dead':
+				self.isDead = True
+			else:
+				self.isDead = False
+
 
 
 	def _enemy_chooseDirection(self):
 
 		target = { 'x': self.PACMAN.x, 'y': self.PACMAN.y }
 		
-		if self.mode == 'scatter':
+
+		if self.isDead:
+			target = self.MAZE.tileToPosition( 8, 10 )
+		elif self.mode == 'scatter':
 			target = self.MAZE.tileToPosition(enemyHomes[self.name][0], enemyHomes[self.name][1])
 		elif self.mode == 'chase':
 			# specielle bevægelses mønstre.
@@ -235,10 +259,11 @@ class pgCharacter(entity.Entity):
 				}
 
 				target = vector
-			elif 'clyde':
+			elif self.name == 'clyde':
 				dist = math.pow(self.PACMAN.x - self.x, 2) + math.pow(self.PACMAN.y - self.y, 2)
 				if dist/math.pow(12, 2) < 35:
 					target = self.MAZE.tileToPosition(enemyHomes[self.name][0], enemyHomes[self.name][1])
+
 
 		index, l, r, u, d = self.MAZE.getPossibleDirections(self.x+16, self.y+24, False)
 		tileX, tileY = self.MAZE.indexToTile(index)
@@ -264,7 +289,8 @@ class pgCharacter(entity.Entity):
 		cDist = None
 
 		for dir in posDirs:
-			if (dirs[dir] != 1 or (dirs[dir] == 0 and (dir == 'up' or self.isDead))) and dir != self.getOppositeDirection(self.lastDirection):
+			directionIsUp_orIsDead = (dir == 'up' or self.isDead)
+			if (dirs[dir] != 1 or (dirs[dir] == 0 and directionIsUp_orIsDead )) and dir != self.getOppositeDirection(self.lastDirection):
 				# Ikke en væg
 				pos = self.MAZE.tileToPosition(directions[dir][0], directions[dir][1])
 
@@ -274,10 +300,11 @@ class pgCharacter(entity.Entity):
 
 				dist = math.pow(width, 2) + math.pow(height, 2)
 
-				if (cDist == None or dist < cDist) or (dir == 'up' and dirs[dir] == 0):
+				if (cDist == None or dist < cDist) or (directionIsUp_orIsDead and dirs[dir] == 0):
 					cDist = dist
-					if dir == 'up' and dirs[dir] == 0:
+					if directionIsUp_orIsDead and dirs[dir] == 0:
 						cDist = -1
+						if dir == 'up' and self.isDead: self.setMode('chase')
 					cDirection = dir
 
 
@@ -287,54 +314,6 @@ class pgCharacter(entity.Entity):
 			self._move(cDirection, self.getOppositeDirection( self.lastDirection ))
 
 
-
-
-	def n_move(self, preferedDirection='random', ignoreDirection=''):
-		if self.needToMove > 0:
-			return
-
-		index, l, r, u, d = self.MAZE.getPossibleDirections(self.x+16, self.y+24, False)
-		tileX, tileY = self.MAZE.indexToTile(index)
-
-		_x, _y = self.MAZE.indexToTile( index )
-		desiredPosition = self.MAZE.tileToPosition( _x, _y )
-		self.x = desiredPosition['x'] -4
-		self.y = desiredPosition['y'] -4
-
-		directions = {
-			'up': [tileX, tileY+1],
-			'left': [tileX-1, tileY],
-			'down': [tileX, tileY-1],
-			'right': [tileX+1, tileY]
-		}
-
-		dirs = {
-			'up': u,
-			'left': l,
-			'down': d,
-			'right': r
-		}
-
-		posDirs = []
-
-		print(dirs)
-
-		for dir in CONSTANTS.possibleDirections:
-			print(dir)
-			if dirs[dir] != 1:
-				posDirs.append(dir)
-
-		
-
-		if preferedDirection in posDirs:
-			self.direction = preferedDirection
-			moveVertical, moveHorizontal = self.MAZE.getMovementInfo(self.direction, index)
-
-			if self.direction == 'right' or self.direction == 'left':
-				self.setNeedToMove(moveVertical)
-			elif self.direction == 'up' or self.direction == 'down':
-				self.setNeedToMove(moveHorizontal)
-				
 
 	
 	def _move(self, preferedDirection='random', ignoreDirection=''):
@@ -369,7 +348,7 @@ class pgCharacter(entity.Entity):
 		# Laver et array med de mulige retninger man kan gå i.
 		i = 0
 		for dir in dirs:
-			if (dir > 1 or (dir < int(preferedDirection == 'up'))) and dirsStrs[i] != ignoreDirection:
+			if (dir > 1 or (dir < int(preferedDirection == 'up' or self.isDead))) and dirsStrs[i] != ignoreDirection:
 				posDirs.append(dirsStrs[i])
 			i += 1
 
@@ -411,17 +390,18 @@ class pgCharacter(entity.Entity):
 
 
 	def _onCollisionWithPacman(self):
-		if self.PACMAN.cheeseTimer > 0:
-			self.isDead = True
-			self.setSprite('scared2')
+		if self.mode == 'frightened':
+			# Spøgelset dør midlertidigt
+			self.setMode('dead')
+		
+		if not self.isDead: # Hvis spøgelset er i live, dør Pacman
+			self.PACMAN.isDead = True
+			print('Pacman Died :(')
+			exit()
 	
-	#*? Setters
-	def setEnemyTarget(self, xTile=-1, yTile=-1):
-		self.altTarget = { 'x': xTile, 'y': yTile }
-		print(self.name, self.altTarget)
 
-	
-	
+
+	#*? Setters	
 	def setNeedToMove(self, amount):
 		self.NEEDtoMOVE = amount
 		self.needToMove = amount
@@ -457,10 +437,6 @@ class pgCharacter(entity.Entity):
 		return target
 
 
-	def getAltTarget(self):
-		if self.altTarget['x'] == -1 or self.altTarget['y'] == -1: return False
-		return self.altTarget
-
 
 	
 	def getOppositeDirection(self, direction):
@@ -475,7 +451,7 @@ class pgCharacter(entity.Entity):
 
 
 	#*? Specielle funktioner som kun bliver kaldt en gang
-	def makeDesignedSprite(self, beginFrame, endFrame, state, spriteName='pacman', rows=4, columns=3, speed=9):
+	def makeDesignedSprite(self, beginFrame, endFrame, state, spriteName='pacman', rows=4, columns=2, speed=9):
 		return entity.Sprite(f'./assets/{spriteName}.png', correspondingState=state, grid={'rows': rows, 'columns': columns}, beginFrame=beginFrame, endFrame=endFrame, animationSpeed=speed, animationBounce=True )
 
 

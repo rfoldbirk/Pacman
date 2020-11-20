@@ -165,7 +165,8 @@ class Maze(entity.Entity):
 				downTile = self.grid[index+17]
 				downTile_i = index+17
 		except:
-			print("an exception happened")
+			print('Something went wrong...')
+			exit()
 
 		if not convertToTiles:
 			return leftTile, rightTile, upTile, downTile

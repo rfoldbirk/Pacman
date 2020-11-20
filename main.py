@@ -1,8 +1,8 @@
-import pyglet, pgCharacter, maze, events
+import pyglet, pgCharacter, maze, events, points
 
 window = pyglet.window.Window(232, 296)
 x, y = window.get_location()
-window.set_location(x+600-30, y)
+window.set_location(x+600-30, y-200)
 pyglet.gl.glClearColor(0,0,0,0)
 
 MAZE = maze.Maze()
@@ -11,12 +11,18 @@ BLINKY = pgCharacter.pgCharacter(MAZE, PACMAN, "blinky")
 
 # Event loop
 Entities = [] # All entities
+
 Entities.append( MAZE )
 Entities.append( PACMAN )
 Entities.append( BLINKY )
 Entities.append( pgCharacter.pgCharacter(MAZE, PACMAN, "pinky") )
 Entities.append( pgCharacter.pgCharacter(MAZE, PACMAN, "inky", BLINKY) )
 Entities.append( pgCharacter.pgCharacter(MAZE, PACMAN, "clyde") )
+
+for i in range(23):
+	point = points.Point(MAZE, PACMAN, i)
+	if point.doNotShow: continue
+	Entities.append( point )
 
 Entities.append( events.EventSystem(Entities) )
 
