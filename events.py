@@ -3,7 +3,8 @@ enemyNames = 'blinky - pinky - inky - clyde'
 enemyHomes = { 'blinky': [16, 20], 'pinky': [0, 20], 'inky': [16, 0], 'clyde': [0, 0] }
 
 delays = {
-	"ins": 1,
+	"instant": 0.1,
+	"slow": 1000,
 	"od": 100, # open delay
 	"smd": 0.1  # start moving delay
 }
@@ -19,10 +20,13 @@ class EventSystem:
 
 
 	def update(self, dt):
+		
 		if len(self.events) == 0: return # Returnerer hvis der ikke er noget events
 
 		if self.eventClock <= 0:
 			EV = self.events[0]
+
+			print(EV)
 
 			# Fjern den ekstra tid fra, og prøv igen
 			if '/st' in EV:
@@ -34,6 +38,7 @@ class EventSystem:
 				except:
 					startTime = delays[startTime]
 
+
 				if startTime > 0: # Sætter tiden
 					self.eventClock = startTime
 
@@ -41,12 +46,15 @@ class EventSystem:
 					EVarr.pop(0)		  # til og med det
 					EV = arrToStr(EVarr)  # første mellemrum
 
+					print(EV)
+
 					self.events.pop(0)
 					self.events.insert(0, EV) 
 					return
 			else:
 				# Udførelse af handling, og så fjerner jeg den
 				EV = self.events[0]
+				print('no time:', EV)
 				self.events.pop(0)
 				self.executeEvent(EV)
 
@@ -91,6 +99,17 @@ class EventSystem:
 				E.mode = 'chase'
 
 			self.getGhosts(0, 3, _callback)
+
+		
+		if 'setMode' in EV:
+			mode = extractAfter(EV, 'setMode')
+
+			print('Got mode:', mode)
+
+			def _callback(E):
+				E.setMode(mode)
+
+			self.getGhosts(0, 3, callback=_callback)
 
 
 		if '/r' in EV:

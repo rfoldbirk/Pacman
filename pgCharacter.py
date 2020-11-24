@@ -18,6 +18,7 @@ class pgCharacter(entity.Entity):
 		self.name = spriteName
 		self.isEnemy = self.name in enemyNames
 
+
 		# Position
 		rx, ry = 8+7*12+16, 8+8*12
 		if copy_of_pacman:
@@ -27,6 +28,8 @@ class pgCharacter(entity.Entity):
 		sColumns = 3
 		if self.isEnemy: 
 			sColumns = 2
+		else:
+			self.score = 0
 
 		spritesArr = []
 
@@ -37,10 +40,15 @@ class pgCharacter(entity.Entity):
 		
 		if self.isEnemy:
 			# Frightened
-			spritesArr.append(self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'rightFrightened', spriteName='frightened2', columns=sColumns))
-			spritesArr.append(self.makeDesignedSprite(sColumns*2, sColumns*2+(sColumns-1), 'leftFrightened', spriteName='frightened2', columns=sColumns))
-			spritesArr.append(self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'upFrightened', spriteName='frightened2', columns=sColumns))
-			spritesArr.append(self.makeDesignedSprite(0, sColumns-1, 'downFrightened', spriteName='frightened2', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'rightFrightened', spriteName='frightened', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(sColumns*2, sColumns*2+(sColumns-1), 'leftFrightened', spriteName='frightened', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'upFrightened', spriteName='frightened', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(0, sColumns-1, 'downFrightened', spriteName='frightened', columns=sColumns))
+
+			spritesArr.append(self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'rightFrightened2', spriteName='frightened2', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(sColumns*2, sColumns*2+(sColumns-1), 'leftFrightened2', spriteName='frightened2', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(sColumns, sColumns+(sColumns-1), 'upFrightened2', spriteName='frightened2', columns=sColumns))
+			spritesArr.append(self.makeDesignedSprite(0, sColumns-1, 'downFrightened2', spriteName='frightened2', columns=sColumns))
 
 			# Dead
 			spritesArr.append(self.makeDesignedSprite(sColumns*3, sColumns*3+(sColumns-1), 'rightDead', spriteName='dead', columns=sColumns))
@@ -52,6 +60,8 @@ class pgCharacter(entity.Entity):
 		# AI settings
 		self.isDead = False
 		self.cheeseTimer = 0
+		self.switchFrightTimer = 0
+		self.readyToFinishTimer = False
 
 		if self.isEnemy: self.timer = 10 * enemyNames.index( self.name ) + 10
 		
@@ -86,7 +96,11 @@ class pgCharacter(entity.Entity):
 
 
 	def update(self, dt):
+		
+
+
 		if self.mode == 'dead':
+			self.cheeseTimer = 0
 			self.speed = self.originalSpeed * 1.5
 		else:
 			self.speed = self.originalSpeed
@@ -95,8 +109,28 @@ class pgCharacter(entity.Entity):
 
 		if self.direction != '':
 			suffix = ''
+
+
+			self.cheeseTimer -= dt # Sørger for at spøgelserne blinker når de er ved at gå ud af frightened.
+			if self.cheeseTimer > 0 and self.cheeseTimer < 2:
+				self.readyToFinishTimer = True
+				self.switchFrightTimer -= 0.1
+				if self.switchFrightTimer <= 0:
+					self.switchFrightTimer = 0
+
+					print(self.state)
+					if not ('2' in self.state):
+						self.suffix = '2'
+			elif self.cheeseTimer < 0 and self.readyToFinishTimer:
+				self.setMode()
+				self.readyToFinishTimer = False
+
+
+			
 			if self.isDead: 			suffix = 'Dead'
-			if self.mode == 'frightened': 	suffix = 'Frightened'
+			if self.mode == 'frightened': 	suffix = 'Frightened' + suffix
+
+			if suffix == 'Frightened2': print('hajsdbasjbdasjbd')
 
 			
 			
@@ -223,15 +257,17 @@ class pgCharacter(entity.Entity):
 			self.isDead = False
 			self.setNextMove( self.getOppositeDirection(self.lastDirection) )
 
-			if self.mode == 'scatter':
-				self.mode = 'chase'
-			else:
+			if self.mode == 'chase':
 				self.mode = 'scatter'
+			else:
+				self.mode = 'chase'
 
 		else:
 			self.mode = preferedMode
 			if self.mode == 'dead':
 				self.isDead = True
+			elif self.mode == 'frightened':
+				self.cheeseTimer = 3
 			else:
 				self.isDead = False
 

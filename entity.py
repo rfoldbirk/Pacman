@@ -60,7 +60,7 @@ class Entity:
 
 
 class Sprite:
-	def __init__(self, source, correspondingState='main', type='SpriteSheet', grid={ 'rows': 1, 'columns': 6 }, beginFrame=0, endFrame=0, animationBounce=False, animationSpeed=5):
+	def __init__(self, source, correspondingState='main', type='SpriteSheet', grid={ 'rows': 1, 'columns': 1 }, beginFrame=0, endFrame=0, animationBounce=False, animationSpeed=5):
 		self.correspondingState = correspondingState
 		self.source = source
 		self.type = type
@@ -70,27 +70,28 @@ class Sprite:
 
 		self.size = { 'width': self.image.width, 'height': self.image.height }
 		
-		if type == 'SpriteSheet':
-			self.grid = grid
-			self.spritesheet = image.ImageGrid(self.image, self.grid['rows'], self.grid['columns'])
 
-			self.frameControl = { 'begin': beginFrame, 'end': endFrame }
-			if endFrame == -1:
-				self.frameControl['end'] = grid['rows'] * grid['columns']
+		# Spritesheet stuff
+		self.grid = grid
+		self.spritesheet = image.ImageGrid(self.image, self.grid['rows'], self.grid['columns'])
 
-			self.frame = beginFrame
-			self.image = self.spritesheet[ self.frame ]
+		self.frameControl = { 'begin': beginFrame, 'end': endFrame }
+		if endFrame == -1:
+			self.frameControl['end'] = grid['rows'] * grid['columns']
 
-			self.animationBounce = animationBounce
-			self.incrementWithValue = 1
+		self.frame = beginFrame
+		self.image = self.spritesheet[ self.frame ]
 
-			if (beginFrame == endFrame) and beginFrame == 0:
-				self.incrementWithValue = 0
+		self.animationBounce = animationBounce
+		self.incrementWithValue = 1
 
-			self.timer = {
-				'animationSpeed': animationSpeed,
-				'count': 0
-			}
+		if (beginFrame == endFrame) and beginFrame == 0:
+			self.incrementWithValue = 0
+
+		self.timer = {
+			'animationSpeed': animationSpeed,
+			'count': 0
+		}
 
 
 	def draw(self, x, y):
