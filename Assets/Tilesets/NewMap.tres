@@ -198,7 +198,7 @@ points = PoolVector2Array( 0, 0, 8, 0, 8, 8, 0, 8 )
 "shape_transform": Transform2D( 1, 0, 0, 1, 0, 0 )
 } ]
 11/z_index = 0
-12/name = "Path"
+12/name = "Point"
 12/texture = ExtResource( 2 )
 12/tex_offset = Vector2( 0, 0 )
 12/modulate = Color( 1, 1, 1, 1 )
@@ -233,7 +233,7 @@ points = PoolVector2Array( 0, 0, 8, 0, 8, 8, 0, 8 )
 "shape_transform": Transform2D( 1, 0, 0, 1, 0, 0 )
 } ]
 14/z_index = 0
-15/name = "Map2.png 15"
+15/name = "Powerup"
 15/texture = ExtResource( 2 )
 15/tex_offset = Vector2( 0, 0 )
 15/modulate = Color( 1, 1, 1, 1 )

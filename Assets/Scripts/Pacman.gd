@@ -1,5 +1,7 @@
 extends AnimatedSprite
 
+onready var pause = true
+
 onready var movementSpeed = 40
 onready var currentDirection = Vector2(0, 0)
 onready var nextDirection = ''
@@ -7,6 +9,8 @@ onready var moveDistance = 4
 onready var moveDistanceMax = moveDistance
 onready var ghost_correctMoveDistance_debiance = true
 onready var timer = 0
+
+onready var ghostIsAligned = false
 
 onready var keepMoving = true
 
@@ -26,6 +30,9 @@ onready var enemyNames = ['Blinky', 'Pinky', 'Inky', 'Clyde']
 onready var isGhost = name in enemyNames
 onready var trapped = true
 onready var mode = 'scatter'
+
+
+onready var Game = get_node('/root/Game')
 
 
 func _ready():
@@ -55,13 +62,17 @@ func _ready():
 			moveDistance = 0
 			nextDirection = 'right'
 			position.y = 8*14.5 # 8*14.5
+	else:
+		mode = 'alive'
 
 	setAnimation('up')
 
 
 func _process(delta):
+	if pause: return
 	# Afspiller den korrekte animation
 	if mode == 'die':
+		# Hvis det er pacman hedder 
 		setAnimation(mode)
 	else:
 		for key in directionVectors:
@@ -77,7 +88,7 @@ func _process(delta):
 		nextPossibleDirections = getDirections()
 
 		if moveDistance < 0:
-			if allowCorrections:
+			if allowCorrections and moveDistanceMax == 8:
 				var desiredPosition = getPosition(getTile()) + Vector2(4, 0)
 				position = desiredPosition
 			
@@ -107,7 +118,9 @@ func _process(delta):
 	if moveDistance > 0:
 		moveDistance -= abs(currentDirection.length() * movementSpeed * delta)
 		
-		position += currentDirection * movementSpeed * delta
+		if ((!isGhost and mode != 'die') or isGhost):
+			position += currentDirection * movementSpeed * delta
+
 	playing = lp != position # Hvis den stod stille, bliver animationen ikke afspillet
 
 
@@ -124,6 +137,7 @@ func ghost_chooseTile():
 	var lastDirection = nextDirection
 
 	if trapped:
+		# Hvis den er fanget, bevæger spøgelset sig op og ned
 		currentDirection = Vector2.ZERO
 		nextDirection = ''
 		
@@ -134,6 +148,7 @@ func ghost_chooseTile():
 			
 		
 	else:
+		# Ellers skal den komme ud, via en bestemt gang
 		var currentPosition = getTile()
 
 		if currentPosition.x >= 11 and currentPosition.x <= 16 and currentPosition.y >= 17 and currentPosition.y <= 21:
@@ -151,9 +166,13 @@ func ghost_chooseTile():
 				else:
 					nextDirection = 'up'
 					ignoreCollisionsMomentarily = true
+
+					if mode == 'die':
+						mode = 'chase'
+						ghost_correctMoveDistance_debiance = true
+						ghostIsAligned = false
 					if currentPosition.y == 17:
-						moveDistanceMax = 10.5
-				pass
+						moveDistanceMax = 11 # Meget vigtigt med .5, da de ellers ikke kommer helt op
 		else: 
 			# Uden for hjemmet
 			var indexOfOppositeDirection = nextPossibleDirections.find( reverseDirection(lastDirection) )
@@ -169,7 +188,7 @@ func ghost_chooseTile():
 					nextDirection = reverseDirection(lastDirection)
 
 
-			elif mode == 'chase' or mode == 'scatter':
+			else:
 				var PM = get_node_or_null("/root/Game/Pacman")
 				var PM_currentDirection = PM.get('currentDirection')
 				var currentRecord = -1
@@ -192,6 +211,7 @@ func ghost_chooseTile():
 						if mode == 'scatter':
 							TargetTile = Vector2(0, -2)
 
+
 					if name == 'Inky':
 						TargetTile += PM_currentDirection * 2
 						var Blinky = get_node_or_null('/root/Game/Blinky')
@@ -205,10 +225,15 @@ func ghost_chooseTile():
 						if mode == 'scatter':
 							TargetTile = Vector2(26, 37)
 
+
 					if name == 'Clyde':
 						var _distanceVector = myPos - TargetTile
 						if _distanceVector.length() <= 8 or mode == 'scatter':
 							TargetTile = Vector2(0, 37)
+
+
+					if mode == 'die':
+						TargetTile = Vector2(13, 16)
 
 
 					var distanceVector = myPos - TargetTile
@@ -226,15 +251,28 @@ func ghost_chooseTile():
 			if ghost_correctMoveDistance_debiance:
 				ghost_correctMoveDistance_debiance = false
 				moveDistanceMax = 4
-				nextDirection = 'right'
 			else:
 				moveDistanceMax = 8
+
+
+			if mode == 'die':
+				if currentPosition.x >= 13 and currentPosition.x <= 14:
+					if currentPosition.y >= 16 and currentPosition.y <= 19:
+						allowCorrections = false
+						if !ghostIsAligned:
+							moveDistanceMax = 30
+							moveDistance = 4
+
+							nextDirection = 'down'
+							ignoreCollisionsMomentarily = true
+							
+							ghostIsAligned = true
+
 
 
 
 
 func ghost_process(_delta):
-
 	var Pacman = get_node_or_null("/root/Game/Pacman")
 	if Pacman:
 		if getTile(Pacman.position) == getTile():
@@ -242,6 +280,7 @@ func ghost_process(_delta):
 			if mode == 'frightened':
 				# Dead
 				mode = 'die'
+				Game.addPoint('ghost')
 			elif mode != 'die':
 				Pacman.mode = 'die'
 				# OS.alert('Pacman døde')
@@ -273,11 +312,22 @@ func pacman_process(_delta):
 				currentDirection = directionVectors[nextDirection]
 
 
+	# Indsamling af point
+	var map = get_node_or_null('/root/Game/Map')
+	if map:
+		var pos = getTile()
+		var cell = map.get_cellv(pos)
+		if cell == 12 or cell == 15:
+			map.set_cellv(pos, -2)
+			if cell == 15:
+				Game.addPoint('powerup')
+			else:
+				Game.addPoint()
 
 
 
 # Returnere et array med mulige retninger
-func getDirections(ghost_correctMoveDistance_debianceug=false):
+func getDirections(debug=false):
 	var possibleDirections = []
 
 	for direction in directionVectors:
@@ -295,15 +345,22 @@ func getDirections(ghost_correctMoveDistance_debianceug=false):
 		if !collisionPoint or getTile() + vector != collisionPoint:
 			possibleDirections.append(direction)
 	
-	if ghost_correctMoveDistance_debianceug: print(possibleDirections)
+	if debug: print(possibleDirections)
 	return possibleDirections
 
 
 
 
 func setAnimation(anim):
+	var customPrefix = name
+
+	if isGhost and anim == 'die':
+		anim = nextDirection
+		customPrefix = 'Dead'
+
+
 	var animationPlaceholder = '{CharacterName}_{Animation}'
-	animationPlaceholder = animationPlaceholder.format({"CharacterName": name})
+	animationPlaceholder = animationPlaceholder.format({"CharacterName": customPrefix})
 	var actualAnimation = animationPlaceholder.format({"Animation": anim})
 
 	# Undtagelser
