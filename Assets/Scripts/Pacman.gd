@@ -25,7 +25,7 @@ onready var directionVectors = {
 onready var enemyNames = ['Blinky', 'Pinky', 'Inky', 'Clyde']
 onready var isGhost = name in enemyNames
 onready var trapped = true
-onready var ghostMode = 'chase'
+onready var mode = 'scatter'
 
 
 func _ready():
@@ -48,7 +48,7 @@ func _ready():
 			if name == 'Clyde': 
 				position.x -= 1
 			if name == 'Inky':
-				position.x -= 0.5
+				position.x = 8*14
 				position.y -= 8
 		else:
 			trapped = false
@@ -61,9 +61,16 @@ func _ready():
 
 func _process(delta):
 	# Afspiller den korrekte animation
-	for key in directionVectors:
-		if directionVectors[key] == currentDirection:
-			setAnimation(key)
+	if mode == 'die':
+		setAnimation(mode)
+	else:
+		for key in directionVectors:
+			if directionVectors[key] == currentDirection:
+				if isGhost and mode == 'frightened':
+					setAnimation(mode)
+				else:
+					setAnimation(key)
+
 
 	# Når pacman / spøgelset er stoppet med at bevæge sig, finder den en ny retning ud fra currentDirection og nextDirection
 	if moveDistance <= 0:
@@ -110,6 +117,8 @@ func _process(delta):
 		pacman_process(delta)
 
 
+
+
 func ghost_chooseTile():
 	allowCorrections = false
 	var lastDirection = nextDirection
@@ -145,13 +154,14 @@ func ghost_chooseTile():
 					if currentPosition.y == 17:
 						moveDistanceMax = 10.5
 				pass
-		else: # Uden for hjemmet
+		else: 
+			# Uden for hjemmet
 			var indexOfOppositeDirection = nextPossibleDirections.find( reverseDirection(lastDirection) )
-			if indexOfOppositeDirection > 0:
+			if indexOfOppositeDirection >= 0:
 				nextPossibleDirections.remove(indexOfOppositeDirection)
 
 
-			if ghostMode == 'frightened':
+			if mode == 'frightened':
 				if nextPossibleDirections.size() > 0:
 					var randomNum = rand_range(0, nextPossibleDirections.size())
 					nextDirection = nextPossibleDirections[randomNum]
@@ -159,9 +169,9 @@ func ghost_chooseTile():
 					nextDirection = reverseDirection(lastDirection)
 
 
-			elif ghostMode == 'chase':
+			elif mode == 'chase' or mode == 'scatter':
 				var PM = get_node_or_null("/root/Game/Pacman")
-				var PMC = PM.get('currentDirection')
+				var PM_currentDirection = PM.get('currentDirection')
 				var currentRecord = -1
 				var winnerDirection = ''
 
@@ -169,28 +179,39 @@ func ghost_chooseTile():
 				for direction in nextPossibleDirections:
 					if direction == reverseDirection(lastDirection): continue
 					
-					var PacmanPos = getTile(PM.position)
+					var TargetTile = getTile(PM.position)
 					var myPos = getTile() + directionVectors[direction]
 
+					if name == 'Blinky':
+						if mode == 'scatter':
+							TargetTile = Vector2(26, -2)
+
+
 					if name == 'Pinky':
-						PacmanPos += PMC * 4
+						TargetTile += PM_currentDirection * 4
+						if mode == 'scatter':
+							TargetTile = Vector2(0, -2)
 
 					if name == 'Inky':
-						PacmanPos += PMC * 2
+						TargetTile += PM_currentDirection * 2
 						var Blinky = get_node_or_null('/root/Game/Blinky')
-						var Bgt = getTile(Blinky.position)
 						
 						if Blinky:
-							var vectorBetweenPacman_and_Blinky = Bgt - PacmanPos
-							vectorBetweenPacman_and_Blinky *= Vector2(-1, -1) # Inversed
-							PacmanPos = getTile(get_node('/root/Game/Blinky')).position + vectorBetweenPacman_and_Blinky
+							var Bgt = getTile(Blinky.position)
+							var vectorBetweenPacman_and_Blinky = Bgt - TargetTile
+							var vNormal = vectorBetweenPacman_and_Blinky.normalized()
+							TargetTile = TargetTile + vNormal * vectorBetweenPacman_and_Blinky.length()
+
+						if mode == 'scatter':
+							TargetTile = Vector2(26, 37)
 
 					if name == 'Clyde':
-						var _distanceVector = myPos - PacmanPos
-						if _distanceVector.length() <= 8:
-							PacmanPos = Vector2(0, 37)
+						var _distanceVector = myPos - TargetTile
+						if _distanceVector.length() <= 8 or mode == 'scatter':
+							TargetTile = Vector2(0, 37)
 
-					var distanceVector = myPos - PacmanPos
+
+					var distanceVector = myPos - TargetTile
 
 					var distance = distanceVector.length()
 					
@@ -199,7 +220,6 @@ func ghost_chooseTile():
 						winnerDirection = direction
 
 				nextDirection = winnerDirection
-
 
 			
 			allowCorrections = true
@@ -211,23 +231,34 @@ func ghost_chooseTile():
 				moveDistanceMax = 8
 
 
+
+
 func ghost_process(_delta):
-	#nextDirection = ''
+
+	var Pacman = get_node_or_null("/root/Game/Pacman")
+	if Pacman:
+		if getTile(Pacman.position) == getTile():
+			# Kollision med Pacman
+			if mode == 'frightened':
+				# Dead
+				mode = 'die'
+			elif mode != 'die':
+				Pacman.mode = 'die'
+				# OS.alert('Pacman døde')
+				# get_tree().quit()
 
 	if Input.is_action_just_pressed("ui_cancel"):
 		trapped = false
-		# nextDirection = 'down'
-		# print(getTile())
+
+	if Input.is_action_just_pressed("ui_accept"):
+		if mode == 'chase':
+			mode = 'frightened'
+		else:
+			mode = 'chase'
 
 
 
 func pacman_process(_delta):
-	# Debug
-	if Input.is_action_just_pressed("ui_accept"):
-		print(getDirections())
-	# -------------------------------------------
-
-	
 	# Mulighed for at vælge / ønske en ny retning
 	for direction in directionVectors:
 		if Input.is_action_just_pressed('ui_%s' % direction):
@@ -274,7 +305,17 @@ func setAnimation(anim):
 	var animationPlaceholder = '{CharacterName}_{Animation}'
 	animationPlaceholder = animationPlaceholder.format({"CharacterName": name})
 	var actualAnimation = animationPlaceholder.format({"Animation": anim})
+
+	# Undtagelser
+	if isGhost:
+		if anim == 'frightened':
+			animation = anim
+			return
+	
+	
 	animation = actualAnimation
+
+	
 
 
 func reverseDirection(direction):
