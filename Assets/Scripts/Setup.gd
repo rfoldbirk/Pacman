@@ -10,6 +10,11 @@ var frightenedTimer = 0
 var firstStageFright = true
 var switchTimer = 0
 
+onready var Map = get_node('/root/Game/Map')
+onready var PointMap = get_node('/root/Game/PointMap')
+
+
+
 func _ready():
 	spawn(true)
 
@@ -62,11 +67,12 @@ func frightened(value=true):
 	for Name in enemyNames:
 		var ghost = get_node_or_null('/root/Game/' + Name)
 		if ghost:
-			if value:
-				ghost.mode = 'frightened'
-				frightenedTimer = 7
-			else:
-				ghost.mode = 'chase'
+			if ghost.mode != 'die':
+				if value:
+					ghost.mode = 'frightened'
+					frightenedTimer = 7
+				else:
+					ghost.mode = 'chase'
 
 	
 
@@ -76,6 +82,7 @@ func frightened(value=true):
 func addPoint(type='point'):
 	if type == 'powerup':
 		points += 5
+		frightened()
 	elif type == 'point':
 		points += 1
 	elif type == 'fruit':
@@ -97,6 +104,13 @@ func spawn(resetPoints=false):
 	freezeTimer = 3
 	frightenedTimer = 0
 	# Reset Pacman og spøgelserne
+
+	for x in range(27):
+		for y in range(35):
+			var cCell = Map.get_cellv(Vector2(x, y))
+			if String(cCell) in '12  15':
+				Map.set_cellv(Vector2(x, y), -1)
+				PointMap.set_cellv(Vector2(x, y), cCell)
 
 	
 	var Pacman = get_node("Pacman")

@@ -3,6 +3,7 @@ extends AnimatedSprite
 onready var pause = true
 
 onready var movementSpeed = 40
+onready var defaultMovementSpeed = movementSpeed
 onready var currentDirection = Vector2(0, 0)
 onready var nextDirection = ''
 onready var moveDistance = 4
@@ -25,6 +26,8 @@ onready var directionVectors = {
 	"down": Vector2(0, 1),
 	"left": Vector2(-1, 0),
 }
+
+var stuckForFrames = 0
 
 onready var enemyNames = ['Blinky', 'Pinky', 'Inky', 'Clyde']
 onready var isGhost = name in enemyNames
@@ -51,6 +54,7 @@ func _ready():
 	position.y = 8*20.5
 
 	if isGhost:
+		defaultMovementSpeed -= 5
 		nextDirection = 'up'
 		currentDirection = directionVectors[nextDirection]
 
@@ -98,6 +102,7 @@ func _process(delta):
 		nextPossibleDirections = getDirections()
 
 		if moveDistance < 0:
+			movementSpeed = defaultMovementSpeed
 			if allowCorrections and moveDistanceMax == 8:
 				var desiredPosition = getPosition(getTile()) + Vector2(4, 0)
 				position = desiredPosition
@@ -137,7 +142,6 @@ func _process(delta):
 		ghost_process(delta)
 	else:
 		pacman_process(delta)
-
 
 
 
@@ -280,12 +284,13 @@ func ghost_chooseTile():
 							
 							ghostIsAligned = true
 
-	if name == 'Blinky':
-		print(nextDirection)
-
 
 
 func ghost_process(_delta):
+
+	if mode == 'die':
+		movementSpeed = defaultMovementSpeed * 4
+
 
 	if mode != lastMode:
 		lastMode = mode
@@ -309,7 +314,7 @@ func ghost_process(_delta):
 		switchTimer = 0
 		if mode == 'scatter':
 			mode = 'chase'
-		else:
+		elif not mode in 'frightened die':
 			mode = 'scatter'
 
 
@@ -330,10 +335,7 @@ func ghost_process(_delta):
 		trapped = false
 
 	if Input.is_action_just_pressed("ui_accept"):
-		if mode == 'chase':
-			mode = 'frightened'
-		else:
-			mode = 'chase'
+		ghost_chooseTile()
 
 
 
@@ -353,12 +355,13 @@ func pacman_process(_delta):
 
 
 	# Indsamling af point
-	var map = get_node_or_null('/root/Game/Map')
-	if map:
+	var PointMap = get_node_or_null('/root/Game/PointMap')
+	if PointMap:
 		var pos = getTile()
-		var cell = map.get_cellv(pos)
+		var cell = PointMap.get_cellv(pos)
 		if cell == 12 or cell == 15:
-			map.set_cellv(pos, -2)
+			movementSpeed = defaultMovementSpeed / 1.3
+			PointMap.set_cellv(pos, -2)
 			if cell == 15:
 				Game.addPoint('powerup')
 			else:
@@ -406,6 +409,8 @@ func setAnimation(anim):
 	# Undtagelser
 	if isGhost:
 		if anim == 'frightened':
+			if not Game.firstStageFright:
+				anim = 'frightened_ending'
 			animation = anim
 			return
 	
