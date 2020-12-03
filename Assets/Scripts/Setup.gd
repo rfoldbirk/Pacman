@@ -7,6 +7,8 @@ onready var enemyNames = ['Blinky', 'Pinky', 'Inky', 'Clyde']
 var points = 0
 var freezeTimer = 0
 var frightenedTimer = 0
+var firstStageFright = true
+var switchTimer = 0
 
 func _ready():
 	spawn(true)
@@ -20,6 +22,18 @@ func _process(delta):
 		pause(true)
 
 
+	if frightenedTimer > 0:
+		frightenedTimer -= delta
+	elif frightenedTimer != 0:
+		if firstStageFright:
+			firstStageFright = false
+			frightenedTimer = 3
+		else:
+			frightenedTimer = 0
+			firstStageFright = true
+			frightened(false) # Gør spøgelserne normale
+
+
 
 func pause(resume=false):
 	var names = enemyNames + ['Pacman']
@@ -31,13 +45,30 @@ func pause(resume=false):
 
 
 
+func switchBetweenScatterAndChase():
+	for Name in enemyNames:
+		var ghost = get_node_or_null('/root/Game/' + Name)
+		if ghost:
+			if ghost.mode == 'chase':
+				ghost.mode = 'scatter'
+			else:
+				ghost.mode = 'chase'
+
+			switchTimer = 25
+
+
+
 func frightened(value=true):
 	for Name in enemyNames:
 		var ghost = get_node_or_null('/root/Game/' + Name)
 		if ghost:
-			ghost.mode == 'frightened':
+			if value:
+				ghost.mode = 'frightened'
+				frightenedTimer = 7
+			else:
+				ghost.mode = 'chase'
 
-	frightenedTimer = 7
+	
 
 
 
@@ -52,7 +83,7 @@ func addPoint(type='point'):
 	elif type == 'ghost':
 		points += 50
 		pause()
-		freezeTimer = 2
+		freezeTimer = 1
 
 	get_node('/root/Game/Points').text = String(points)
 
@@ -62,6 +93,7 @@ func spawn(resetPoints=false):
 	if resetPoints:
 		points = 0
 
+	switchTimer = 50
 	freezeTimer = 3
 	frightenedTimer = 0
 	# Reset Pacman og spøgelserne

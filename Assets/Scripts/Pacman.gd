@@ -29,7 +29,15 @@ onready var directionVectors = {
 onready var enemyNames = ['Blinky', 'Pinky', 'Inky', 'Clyde']
 onready var isGhost = name in enemyNames
 onready var trapped = true
-onready var mode = 'scatter'
+onready var mode = 'chase'
+onready var lastMode = 'scatter'
+
+
+# Sørger for at Blinky, begynder at jagte Pacman efter et stykke tid
+# Dog kun i starten
+onready var switchTimerMax = 5
+onready var switchTimerDeb = true
+onready var switchTimer = 0
 
 
 onready var Game = get_node('/root/Game')
@@ -49,7 +57,7 @@ func _ready():
 		moveDistance = 1
 		moveDistanceMax = moveDistance
 
-		if name != 'Blinky': 
+		if name != 'Blinky':
 			position.y = 8*18
 			position.x = 8*12 + 16* (enemyNames.find(name)-1) # der skal stå: -1
 			if name == 'Clyde': 
@@ -58,6 +66,7 @@ func _ready():
 				position.x = 8*14
 				position.y -= 8
 		else:
+			mode = 'scatter'
 			trapped = false
 			moveDistance = 0
 			nextDirection = 'right'
@@ -70,6 +79,7 @@ func _ready():
 
 func _process(delta):
 	if pause: return
+
 	# Afspiller den korrekte animation
 	if mode == 'die':
 		# Hvis det er pacman hedder 
@@ -122,7 +132,6 @@ func _process(delta):
 			position += currentDirection * movementSpeed * delta
 
 	playing = lp != position # Hvis den stod stille, bliver animationen ikke afspillet
-
 
 	if isGhost:
 		ghost_process(delta)
@@ -251,6 +260,9 @@ func ghost_chooseTile():
 			if ghost_correctMoveDistance_debiance:
 				ghost_correctMoveDistance_debiance = false
 				moveDistanceMax = 4
+				if switchTimerDeb and name == 'Blinky':
+					switchTimer = switchTimerMax
+					switchTimerDeb = false
 			else:
 				moveDistanceMax = 8
 
@@ -268,11 +280,39 @@ func ghost_chooseTile():
 							
 							ghostIsAligned = true
 
-
+	if name == 'Blinky':
+		print(nextDirection)
 
 
 
 func ghost_process(_delta):
+
+	if mode != lastMode:
+		lastMode = mode
+		if mode != 'die' and lastMode != 'die':
+			var rDir = reverseDirection(nextDirection)
+			var currentPosition = getTile()
+
+			# Tjekker først og fremmest at den omvendte retning er gyldig,
+			# hvorefter den tjekker om spøgelset er inden i deres base
+			if rDir != '' and not (currentPosition.x >= 11 and currentPosition.x <= 16 and currentPosition.y >= 17 and currentPosition.y <= 21):
+				nextDirection = rDir
+				if currentDirection == -directionVectors[nextDirection] and moveDistance > 0:
+					moveDistance = moveDistanceMax - moveDistance
+					currentDirection = directionVectors[nextDirection]
+
+
+	# Sørger for at den skifter fra scatter til chase, men er kun gyldigt for Blinky
+	if switchTimer > 0:
+		switchTimer -= _delta
+	elif switchTimer != 0:
+		switchTimer = 0
+		if mode == 'scatter':
+			mode = 'chase'
+		else:
+			mode = 'scatter'
+
+
 	var Pacman = get_node_or_null("/root/Game/Pacman")
 	if Pacman:
 		if getTile(Pacman.position) == getTile():
@@ -380,6 +420,8 @@ func reverseDirection(direction):
 	if direction == 'down': return 'up'
 	if direction == 'right': return 'left'
 	if direction == 'left': return 'right'
+
+	return direction
 
 
 func getTile(pos=position): # Tager objektets egen position som udgangspunkt
