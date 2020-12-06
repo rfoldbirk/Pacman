@@ -101,7 +101,7 @@ func spawn(resetPoints=false):
 		points = 0
 
 	switchTimer = 50
-	freezeTimer = 3
+	freezeTimer = 1.5
 	frightenedTimer = 0
 	# Reset Pacman og spøgelserne
 
@@ -114,9 +114,12 @@ func spawn(resetPoints=false):
 
 	
 	var Pacman = get_node("Pacman")
+	Pacman.set_z_index(0)
 	
 	for Name in enemyNames:
 		var newGhost = Pacman.duplicate()
 		newGhost.name = Name
 		
 		add_child(newGhost)
+
+	Pacman.set_z_index(1)

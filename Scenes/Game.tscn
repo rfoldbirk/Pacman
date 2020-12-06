@@ -485,8 +485,7 @@ format = 1
 [node name="Pacman" type="AnimatedSprite" parent="."]
 position = Vector2( 112, 164 )
 frames = SubResource( 79 )
-animation = "Dead_down"
-frame = 1
+animation = "Pacman_die"
 script = ExtResource( 3 )
 
 [node name="Raycast" type="RayCast2D" parent="Pacman"]

@@ -82,7 +82,15 @@ func _ready():
 
 
 func _process(delta):
-	if pause: return
+	if pause: 
+		if name == 'Pacman' and mode == 'die':
+			if frame == 19:
+				get_tree().change_scene("res://Scenes/Menu.tscn")
+			setAnimation('die')
+			playing = true
+		else:
+			playing = false
+		return
 
 	# Afspiller den korrekte animation
 	if mode == 'die':
@@ -103,7 +111,7 @@ func _process(delta):
 
 		if moveDistance < 0:
 			movementSpeed = defaultMovementSpeed
-			if allowCorrections and moveDistanceMax == 8:
+			if allowCorrections and moveDistanceMax == 8 and (isGhost or (mode != 'die' and not isGhost)):
 				var desiredPosition = getPosition(getTile()) + Vector2(4, 0)
 				position = desiredPosition
 			
@@ -136,8 +144,9 @@ func _process(delta):
 		if ((!isGhost and mode != 'die') or isGhost):
 			position += currentDirection * movementSpeed * delta
 
-	playing = lp != position # Hvis den stod stille, bliver animationen ikke afspillet
-
+	if (isGhost or (not isGhost and mode != 'die')):
+		playing = lp != position # Hvis den stod stille, bliver animationen ikke afspillet	
+	
 	if isGhost:
 		ghost_process(delta)
 	else:
@@ -287,14 +296,13 @@ func ghost_chooseTile():
 
 
 func ghost_process(_delta):
-
 	if mode == 'die':
 		movementSpeed = defaultMovementSpeed * 4
 
 
 	if mode != lastMode:
 		lastMode = mode
-		if mode != 'die' and lastMode != 'die':
+		if not (mode in 'die frightened') and not (lastMode in 'die frightened'):
 			var rDir = reverseDirection(nextDirection)
 			var currentPosition = getTile()
 
@@ -328,8 +336,7 @@ func ghost_process(_delta):
 				Game.addPoint('ghost')
 			elif mode != 'die':
 				Pacman.mode = 'die'
-				# OS.alert('Pacman døde')
-				# get_tree().quit()
+				Game.pause()
 
 	if Input.is_action_just_pressed("ui_cancel"):
 		trapped = false

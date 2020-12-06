@@ -1,0 +1,39 @@
+[gd_scene load_steps=3 format=2]
+
+[ext_resource path="res://Assets/Fonts/Atari Dynamic Font.tres" type="DynamicFont" id=1]
+[ext_resource path="res://Assets/Scripts/Menu.gd" type="Script" id=2]
+
+[node name="Menu" type="Node2D"]
+script = ExtResource( 2 )
+
+[node name="Title" type="Label" parent="."]
+margin_top = 40.0
+margin_right = 112.0
+margin_bottom = 65.0
+rect_scale = Vector2( 2, 2 )
+custom_fonts/font = ExtResource( 1 )
+custom_colors/font_color = Color( 1, 1, 0, 1 )
+text = "PACMAN"
+align = 1
+valign = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
+
+[node name="Buttons" type="Label" parent="."]
+margin_top = 120.0
+margin_right = 224.0
+margin_bottom = 208.0
+custom_fonts/font = ExtResource( 1 )
+text = "Play
+
+
+Settings
+
+
+Quit"
+align = 1
+valign = 1
+__meta__ = {
+"_edit_use_anchors_": false
+}
