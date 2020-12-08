@@ -44,6 +44,7 @@ onready var switchTimer = 0
 
 
 onready var foundPacman = false
+onready var use_aStar = true
 
 onready var Game = get_node('/root/Game')
 
@@ -73,13 +74,19 @@ func _ready():
 				position.y -= 8
 		else:
 			position.x = 8*14
-			currentDirection = directionVectors['right'] #Vector2()
-			mode = 'scatter'
-			trapped = false
+			position.y = 8*14.5 # 8*14.5
+			
+			# currentDirection = directionVectors['right']
+			# nextDirection = 'right'
+
+			currentDirection = Vector2()
+			nextDirection = ''
+
 			moveDistance = 4
 			moveDistanceMax = 8
-			nextDirection = 'right'
-			position.y = 8*14.5 # 8*14.5
+			
+			mode = 'chase'
+			trapped = false
 	else:
 		mode = 'alive'
 
@@ -161,75 +168,88 @@ func _process(delta):
 
 
 
-var asDeb = true
+var asObj = {
+	'main': [],
+	'wait': [],
+	'new': [],
+	'deb': true
+}
 
 
-func ghost_chooseTile():
+func AStarChooseTile():
+
+	var posDirs = getDirectionsAlt()
+
+	var posDirs_equal2 = posDirs.size() == 2
+
+	var nxtDirIsInPosDirs = nextDirection in posDirs
+	
+	if posDirs_equal2 and nxtDirIsInPosDirs and currentDirection != Vector2():
+		return
+
+
+	currentDirection = Vector2()
+
 	# hvis der er mere end 1 mulighed, send videre.
 	if foundPacman:
 		print('Found! - ', foundPacman)
 		nextDirection = foundPacman
+		currentDirection = directionVectors[nextDirection]
 		foundPacman = false
-		asDeb = true
+		asObj.deb = true
+
+		if moveDistance == 0:
+			moveDistance = 8
+
+
+		# fjern
+		var pathMap = get_node('/root/Game/PathMap')
+		for _x in range(0, 28):
+			for _y in range(5, 36):
+				pathMap.set_cellv(Vector2(_x, _y), -1)
+		
+
+		asObj.main = []
+		asObj.new = []
+		asObj.wait = []
 	else:
-		if asDeb:
-			nextDirection = ''
-			asDeb = false
+		if asObj.deb:
+			asObj.deb = false
 			print('Searching')
 
-			var pathMap = get_node('/root/Game/PathMap')
-			pathMap.set_cellv(getTile(), 0)
+			var i = 0
+			var offset = Vector2()
+			var lastDirection = nextDirection
 
-			aStar()
-
-
-	
-	
-var asAmount = 0
-var astarArr = []
+			nextDirection = ''
 
 
-func aStar():
-	# få alle ny retninger som er kortere og prop dem i et array.
-	# derefter gentag processen for alle i arrayet, sådan at alt får
-	# en lige chance for at finde pacman
+			while not foundPacman:
+				i += 1
+				if i > 200: break
 
-	var i = 0
+				asObj.wait = asObj.new
+				asObj.new = []
 
-	while not foundPacman:
-		i += 1
-		if i > 300: break
-		
-		aStar_getAll()
+				if (asObj.main + asObj.new + asObj.wait).size() == 0:
+					aStar_getShortest()
+				else:
+					var index = 0
+					for x in asObj.main:
+						index += 1
+						aStar_getShortest(x.offset, x.firstDirection, x.lastDirection)
+						asObj.main.remove(index-1)
 
+					if asObj.main.size() == 0:
+						index = 0
+						for x in asObj.wait:
+							index += 1
+							aStar_getShortest(x.offset, x.firstDirection, x.lastDirection)
+							asObj.wait.remove(index-1)
 
-	if foundPacman:
-		ghost_chooseTile()
-	else:
-		print("Could not find Pacman")
-
-
-func aStar_getAll():
-	var newArr = []
-
-	if astarArr.size() == 0:
-		astarArr = aStar_getShortest()
-	else:
-		
-
-		for x in astarArr:
-			var extra = aStar_getShortest(x.offset, x.firstDirection, x.lastDirection)
-			newArr += extra
-
-		
-
-		astarArr = newArr
 
 
 func aStar_getShortest(offset=Vector2(), firstDirection=false, lastDirection=false):
-
-	var newTileDirections = []
-
 	var ghostPosition = position + offset*8
 
 	var Pacman = get_node_or_null("/root/Game/Pacman")
@@ -246,74 +266,34 @@ func aStar_getShortest(offset=Vector2(), firstDirection=false, lastDirection=fal
 
 		if not lastDirection: lastDirection = nextDirection
 
-		if newDistance < currentDistance and reverseDirection(lastDirection) != direction:
-			# tjekker om den nye distance er kortere
-			# og om retningen ikke er den omvendte af hvad spøgelset gjorde sidst
+		if reverseDirection(lastDirection) != direction:
+
+			var pathMap = get_node('/root/Game/PathMap')
+			pathMap.set_cellv(getTile() + offset, 0)
 
 			var _fd = firstDirection
 			if not _fd: _fd = direction
 
-			newTileDirections.append({
+			var obj = {
 				'firstDirection': _fd,
 				'lastDirection': direction,
 				'offset': offset + directionVectors[direction]
-			})
+			}
 
-	# if newTileDirections.size() == 0:
-	# 	for direction in getDirectionsAlt(offset):
-	# 		var _fd = firstDirection
-	# 		if not _fd: _fd = direction
-
-	# 		if reverseDirection(lastDirection) != direction:
-	# 			newTileDirections.append({
-	# 				'firstDirection': _fd,
-	# 				'lastDirection': direction,
-	# 				'offset': offset + directionVectors[direction]
-	# 			})
-
-	return newTileDirections
-
-
-
-
-func _aStar(firstDirection=false, offset=Vector2()):
-	asAmount += 1
-	if asAmount > 10: return
-
-	if foundPacman: 
-		return
-
-	var posDirs = getDirections(false, offset)
-
-	var Pacman = get_node_or_null("/root/Game/Pacman")
-
-	var tpos = position + offset * 8
-	var currentDistance = (Pacman.position - tpos).length()
-
-	if getTile(Pacman.position) == getTile(tpos):
-		foundPacman = firstDirection
-
-	
-	for dirString in posDirs:
-		var newDistance = (Pacman.position - getPosition( getTile(tpos) )).length()
-		if getTile(tpos).y == 22:
-			print(dirString, ' - ', newDistance)
-
-		if newDistance < currentDistance and reverseDirection(nextDirection) != dirString:
-			print( getTile(tpos), ' - first: ', firstDirection, ' next: ', dirString)
-			var dir = firstDirection
-			if not firstDirection: 
-				dir = dirString
-
-			offset += directionVectors[dirString]
-			#aStar(dir, offset)
+			if newDistance < currentDistance:
+				# tjekker om den nye distance er kortere
+				# og om retningen ikke er den omvendte af hvad spøgelset gjorde sidst
+				asObj.main.push_back(obj)
+			else:
+				asObj.new.push_back(obj)
 
 
 
 
 
 
-func _ghost_chooseTile():
+
+func ghost_chooseTile():
 	allowCorrections = false
 	var lastDirection = nextDirection
 
@@ -375,6 +355,8 @@ func _ghost_chooseTile():
 				var currentRecord = -1
 				var winnerDirection = ''
 
+				if mode == 'chase' and use_aStar:
+					AStarChooseTile()
 
 				for direction in nextPossibleDirections:
 					if direction == reverseDirection(lastDirection): continue
@@ -477,7 +459,8 @@ func ghost_process(_delta):
 
 	# Sørger for at den skifter fra scatter til chase, men er kun gyldigt for Blinky
 	if switchTimer > 0:
-		switchTimer -= _delta
+		pass
+		#switchTimer -= _delta
 	elif switchTimer != 0:
 		switchTimer = 0
 		if mode == 'scatter':
@@ -499,7 +482,8 @@ func ghost_process(_delta):
 				Game.pause()
 
 	if Input.is_action_just_pressed("ui_cancel"):
-		trapped = false
+		asObj.deb = true
+		ghost_chooseTile()
 
 
 
