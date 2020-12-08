@@ -52,8 +52,8 @@ func _ready():
 	speed_scale = 3 # Animations hastighed
 	
 	# x: 112, y: 164 - Her skal Pacman stå
-	position.x = 8*14
-	position.y = 8*20.5
+	position.x = 8*9.5#14
+	position.y = 8*29.5#20.5
 
 	if isGhost:
 		defaultMovementSpeed -= 5
@@ -72,15 +72,20 @@ func _ready():
 				position.x = 8*14
 				position.y -= 8
 		else:
+			position.x = 8*14
+			currentDirection = directionVectors['right'] #Vector2()
 			mode = 'scatter'
 			trapped = false
-			moveDistance = 0
+			moveDistance = 4
+			moveDistanceMax = 8
 			nextDirection = 'right'
 			position.y = 8*14.5 # 8*14.5
 	else:
 		mode = 'alive'
 
 	setAnimation('up')
+
+
 
 
 func _process(delta):
@@ -165,19 +170,113 @@ func ghost_chooseTile():
 		print('Found! - ', foundPacman)
 		nextDirection = foundPacman
 		foundPacman = false
+		asDeb = true
 	else:
-		if getDirections().size() > 0 and 'down' in getDirections() and asDeb:
+		if asDeb:
+			nextDirection = ''
 			asDeb = false
 			print('Searching')
+
+			var pathMap = get_node('/root/Game/PathMap')
+			pathMap.set_cellv(getTile(), 0)
+
 			aStar()
 
 
 	
 	
 var asAmount = 0
+var astarArr = []
 
 
-func aStar(firstDirection=false, offset=Vector2()):
+func aStar():
+	# få alle ny retninger som er kortere og prop dem i et array.
+	# derefter gentag processen for alle i arrayet, sådan at alt får
+	# en lige chance for at finde pacman
+
+	var i = 0
+
+	while not foundPacman:
+		i += 1
+		if i > 300: break
+		
+		aStar_getAll()
+
+
+	if foundPacman:
+		ghost_chooseTile()
+	else:
+		print("Could not find Pacman")
+
+
+func aStar_getAll():
+	var newArr = []
+
+	if astarArr.size() == 0:
+		astarArr = aStar_getShortest()
+	else:
+		
+
+		for x in astarArr:
+			var extra = aStar_getShortest(x.offset, x.firstDirection, x.lastDirection)
+			newArr += extra
+
+		
+
+		astarArr = newArr
+
+
+func aStar_getShortest(offset=Vector2(), firstDirection=false, lastDirection=false):
+
+	var newTileDirections = []
+
+	var ghostPosition = position + offset*8
+
+	var Pacman = get_node_or_null("/root/Game/Pacman")
+	var currentDistance = (Pacman.position - ghostPosition).length()
+
+	# Tjekker om vi står oven på Pacman
+	if getTile(position + offset*8) == getTile(Pacman.position):
+		foundPacman = firstDirection
+
+
+	# hvis dette sker, er det første gang aStar bliver kaldt
+	for direction in getDirectionsAlt(offset):
+		var newDistance = (Pacman.position - (ghostPosition + directionVectors[direction]*8)).length()
+
+		if not lastDirection: lastDirection = nextDirection
+
+		if newDistance < currentDistance and reverseDirection(lastDirection) != direction:
+			# tjekker om den nye distance er kortere
+			# og om retningen ikke er den omvendte af hvad spøgelset gjorde sidst
+
+			var _fd = firstDirection
+			if not _fd: _fd = direction
+
+			newTileDirections.append({
+				'firstDirection': _fd,
+				'lastDirection': direction,
+				'offset': offset + directionVectors[direction]
+			})
+
+	# if newTileDirections.size() == 0:
+	# 	for direction in getDirectionsAlt(offset):
+	# 		var _fd = firstDirection
+	# 		if not _fd: _fd = direction
+
+	# 		if reverseDirection(lastDirection) != direction:
+	# 			newTileDirections.append({
+	# 				'firstDirection': _fd,
+	# 				'lastDirection': direction,
+	# 				'offset': offset + directionVectors[direction]
+	# 			})
+
+	return newTileDirections
+
+
+
+
+func _aStar(firstDirection=false, offset=Vector2()):
 	asAmount += 1
 	if asAmount > 10: return
 
@@ -207,7 +306,7 @@ func aStar(firstDirection=false, offset=Vector2()):
 				dir = dirString
 
 			offset += directionVectors[dirString]
-			aStar(dir, offset)
+			#aStar(dir, offset)
 
 
 
@@ -360,6 +459,7 @@ func ghost_process(_delta):
 		movementSpeed = defaultMovementSpeed * 4
 
 
+	# Når den skifter fra en mode til en andnen
 	if mode != lastMode:
 		lastMode = mode
 		if not (mode in 'die frightened') and not (lastMode in 'die frightened'):
@@ -410,7 +510,8 @@ func pacman_process(_delta):
 			# Laver et ønske om den næste retning.
 			nextDirection = direction
 			if currentDirection == Vector2.ZERO:
-				currentDirection = directionVectors[direction]
+				if direction in getDirections():
+					currentDirection = directionVectors[direction]
 
 			# Hvis den omvendte retning ønskes og den er i bevægelse
 			if currentDirection == -directionVectors[nextDirection] and moveDistance > 0:
@@ -437,12 +538,14 @@ func pacman_process(_delta):
 func getDirections(debug=false, offset=Vector2()):
 	var possibleDirections = []
 	var oldRCPos = $Raycast.position
+	$Raycast.position += offset * 8
 
 	for direction in directionVectors:
 		var vector = directionVectors[direction]
 
 		$Raycast.set_cast_to(vector * 350) # Sætter retningen på raycasteren
 		$Raycast.force_raycast_update() # Raycasteren skal opdateres!
+		$Raycast.force_update_transform()
 		var collisionPoint = getCollisionTile()
 		
 		if direction == 'up' or direction == 'left':
@@ -457,6 +560,22 @@ func getDirections(debug=false, offset=Vector2()):
 
 	if debug: print(possibleDirections)
 	return possibleDirections
+
+
+
+func getDirectionsAlt(offset=Vector2()):
+	var validDirections = []
+
+	var Map = get_node_or_null('/root/Game/Map')
+
+
+	for direction in directionVectors:
+		var cell = Map.get_cellv(getTile(position + offset*8) + directionVectors[direction])
+
+		if cell == -1:
+			validDirections.append(direction)
+
+	return validDirections
 
 
 
