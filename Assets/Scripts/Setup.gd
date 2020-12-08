@@ -1,7 +1,7 @@
 extends Node2D
 
 
-onready var enemyNames = ['Blinky', 'Pinky', 'Inky', 'Clyde']
+onready var enemyNames = ['Blinky'] #, 'Pinky', 'Inky', 'Clyde']
 
 
 var points = 0
@@ -101,7 +101,7 @@ func spawn(resetPoints=false):
 		points = 0
 
 	switchTimer = 50
-	freezeTimer = 1.5
+	freezeTimer = 0.1
 	frightenedTimer = 0
 	# Reset Pacman og spøgelserne
 

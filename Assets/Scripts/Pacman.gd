@@ -43,6 +43,8 @@ onready var switchTimerDeb = true
 onready var switchTimer = 0
 
 
+onready var foundPacman = false
+
 onready var Game = get_node('/root/Game')
 
 
@@ -154,7 +156,65 @@ func _process(delta):
 
 
 
+var asDeb = true
+
+
 func ghost_chooseTile():
+	# hvis der er mere end 1 mulighed, send videre.
+	if foundPacman:
+		print('Found! - ', foundPacman)
+		nextDirection = foundPacman
+		foundPacman = false
+	else:
+		if getDirections().size() > 0 and 'down' in getDirections() and asDeb:
+			asDeb = false
+			print('Searching')
+			aStar()
+
+
+	
+	
+var asAmount = 0
+
+
+func aStar(firstDirection=false, offset=Vector2()):
+	asAmount += 1
+	if asAmount > 10: return
+
+	if foundPacman: 
+		return
+
+	var posDirs = getDirections(false, offset)
+
+	var Pacman = get_node_or_null("/root/Game/Pacman")
+
+	var tpos = position + offset * 8
+	var currentDistance = (Pacman.position - tpos).length()
+
+	if getTile(Pacman.position) == getTile(tpos):
+		foundPacman = firstDirection
+
+	
+	for dirString in posDirs:
+		var newDistance = (Pacman.position - getPosition( getTile(tpos) )).length()
+		if getTile(tpos).y == 22:
+			print(dirString, ' - ', newDistance)
+
+		if newDistance < currentDistance and reverseDirection(nextDirection) != dirString:
+			print( getTile(tpos), ' - first: ', firstDirection, ' next: ', dirString)
+			var dir = firstDirection
+			if not firstDirection: 
+				dir = dirString
+
+			offset += directionVectors[dirString]
+			aStar(dir, offset)
+
+
+
+
+
+
+func _ghost_chooseTile():
 	allowCorrections = false
 	var lastDirection = nextDirection
 
@@ -341,9 +401,6 @@ func ghost_process(_delta):
 	if Input.is_action_just_pressed("ui_cancel"):
 		trapped = false
 
-	if Input.is_action_just_pressed("ui_accept"):
-		ghost_chooseTile()
-
 
 
 func pacman_process(_delta):
@@ -377,8 +434,9 @@ func pacman_process(_delta):
 
 
 # Returnere et array med mulige retninger
-func getDirections(debug=false):
+func getDirections(debug=false, offset=Vector2()):
 	var possibleDirections = []
+	var oldRCPos = $Raycast.position
 
 	for direction in directionVectors:
 		var vector = directionVectors[direction]
@@ -395,6 +453,8 @@ func getDirections(debug=false):
 		if !collisionPoint or getTile() + vector != collisionPoint:
 			possibleDirections.append(direction)
 	
+	$Raycast.position = oldRCPos
+
 	if debug: print(possibleDirections)
 	return possibleDirections
 
