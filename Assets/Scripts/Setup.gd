@@ -101,7 +101,7 @@ func spawn(resetPoints=false):
 		points = 0
 
 	switchTimer = 50
-	freezeTimer = 1
+	freezeTimer = 0.1
 	frightenedTimer = 0
 	# Reset Pacman og spøgelserne
 

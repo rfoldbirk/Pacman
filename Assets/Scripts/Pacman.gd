@@ -53,8 +53,8 @@ func _ready():
 	speed_scale = 3 # Animations hastighed
 	
 	# x: 112, y: 164 - Her skal Pacman stå
-	position.x = 8*9.5#14
-	position.y = 8*29.5#20.5
+	position.x = 8*12.5#14
+	position.y = 8*32.5#20.5
 
 	if isGhost:
 		defaultMovementSpeed -= 5
@@ -172,21 +172,19 @@ var asObj = {
 	'main': [],
 	'wait': [],
 	'new': [],
-	'deb': true
+	'deb': true,
+	'occupied': []
 }
 
 
 func AStarChooseTile():
 
 	var posDirs = getDirectionsAlt()
-
 	var posDirs_equal2 = posDirs.size() == 2
-
 	var nxtDirIsInPosDirs = nextDirection in posDirs
-	
+
 	if posDirs_equal2 and nxtDirIsInPosDirs and currentDirection != Vector2():
 		return
-
 
 	currentDirection = Vector2()
 
@@ -212,29 +210,33 @@ func AStarChooseTile():
 		asObj.main = []
 		asObj.new = []
 		asObj.wait = []
+		asObj.occupied = []
 	else:
+		var lastDirection = nextDirection
+
+		nextDirection = ''
+
 		if asObj.deb:
 			asObj.deb = false
 			print('Searching')
 
 			var i = 0
 			var offset = Vector2()
-			var lastDirection = nextDirection
-
-			nextDirection = ''
+			
 
 
 			while not foundPacman:
 				i += 1
-				if i > 200: break
+				if i > 3: break
 
 				asObj.wait = asObj.new
 				asObj.new = []
 
 				if (asObj.main + asObj.new + asObj.wait).size() == 0:
-					aStar_getShortest()
+					aStar_getShortest(Vector2(), false, lastDirection)
 				else:
 					var index = 0
+					# udforkser først og fremmest de retninger der kommer tættere på...
 					for x in asObj.main:
 						index += 1
 						aStar_getShortest(x.offset, x.firstDirection, x.lastDirection)
@@ -247,7 +249,7 @@ func AStarChooseTile():
 							aStar_getShortest(x.offset, x.firstDirection, x.lastDirection)
 							asObj.wait.remove(index-1)
 
-
+			#ghost_chooseTile()
 
 func aStar_getShortest(offset=Vector2(), firstDirection=false, lastDirection=false):
 	var ghostPosition = position + offset*8
@@ -259,15 +261,15 @@ func aStar_getShortest(offset=Vector2(), firstDirection=false, lastDirection=fal
 	if getTile(position + offset*8) == getTile(Pacman.position):
 		foundPacman = firstDirection
 
+	var objArray = []
 
 	# hvis dette sker, er det første gang aStar bliver kaldt
 	for direction in getDirectionsAlt(offset):
 		var newDistance = (Pacman.position - (ghostPosition + directionVectors[direction]*8)).length()
 
-		if not lastDirection: lastDirection = nextDirection
-
-		if reverseDirection(lastDirection) != direction:
-
+		var newPos = getTile() + offset + directionVectors[direction]
+		if reverseDirection(lastDirection) != direction and not (newPos in asObj.occupied):
+			asObj.occupied.append(newPos)
 			var pathMap = get_node('/root/Game/PathMap')
 			pathMap.set_cellv(getTile() + offset, 0)
 
@@ -277,15 +279,34 @@ func aStar_getShortest(offset=Vector2(), firstDirection=false, lastDirection=fal
 			var obj = {
 				'firstDirection': _fd,
 				'lastDirection': direction,
-				'offset': offset + directionVectors[direction]
+				'offset': offset + directionVectors[direction],
+				'score': currentDistance - newDistance
 			}
 
-			if newDistance < currentDistance:
-				# tjekker om den nye distance er kortere
-				# og om retningen ikke er den omvendte af hvad spøgelset gjorde sidst
-				asObj.main.push_back(obj)
-			else:
-				asObj.new.push_back(obj)
+			objArray.append(obj)
+
+	if objArray.size() == 0:
+		return
+
+	# udregn en gennemsnitlig score
+	var genScore = 0
+	for x in objArray:
+		genScore += x.score
+
+	genScore = genScore / (objArray.size()+2)
+
+	print('total: ', genScore)
+
+	var _index = 0
+	for x in objArray:
+		if x.score > 0 or x.score > genScore:
+			print(x)
+			asObj.main.push_back(x)
+		else:
+			asObj.new.push_back(x)
+		_index += 1
+
+			
 
 
 
@@ -357,6 +378,7 @@ func ghost_chooseTile():
 
 				if mode == 'chase' and use_aStar:
 					AStarChooseTile()
+					return
 
 				for direction in nextPossibleDirections:
 					if direction == reverseDirection(lastDirection): continue
@@ -460,7 +482,7 @@ func ghost_process(_delta):
 	# Sørger for at den skifter fra scatter til chase, men er kun gyldigt for Blinky
 	if switchTimer > 0:
 		pass
-		#switchTimer -= _delta
+		#TODO: switchTimer -= _delta
 	elif switchTimer != 0:
 		switchTimer = 0
 		if mode == 'scatter':
