@@ -168,145 +168,170 @@ func _process(delta):
 
 
 
-var asObj = {
-	'main': [],
-	'wait': [],
-	'new': [],
-	'deb': true,
-	'occupied': []
-}
+func drawPaths(OPEN, CLOSED):
+	var pathMap = get_node('/root/Game/PathMap')
+
+	for x in range(0, 40):
+		for y in range(0, 40):
+			pathMap.set_cellv(Vector2(x, y), -1)
+
+	for x in OPEN:
+		pathMap.set_cellv(x.position, 1)
+
+	for x in CLOSED:
+		pathMap.set_cellv(x.position, 0)
+
+
+var asDeb = false
 
 
 func AStarChooseTile():
 
-	var posDirs = getDirectionsAlt()
-	var posDirs_equal2 = posDirs.size() == 2
-	var nxtDirIsInPosDirs = nextDirection in posDirs
+	var posDirs_equal2 = getDirectionsAlt().size() == 2
+	var nxtDirIsInPosDirs = nextDirection in getDirectionsAlt()
 
 	if posDirs_equal2 and nxtDirIsInPosDirs and currentDirection != Vector2():
 		return
 
+	var lastDirection = nextDirection
+	nextDirection = ''
 	currentDirection = Vector2()
 
-	# hvis der er mere end 1 mulighed, send videre.
-	if foundPacman:
-		print('Found! - ', foundPacman)
-		nextDirection = foundPacman
-		currentDirection = directionVectors[nextDirection]
-		foundPacman = false
-		asObj.deb = true
+	if getDirectionsAlt().size() == 2 and currentDirection != Vector2(): return
 
-		if moveDistance == 0:
-			moveDistance = 8
+	
+
+	var Pacman = get_node('/root/Game/Pacman')
+
+	var OPEN = []
+	var CLOSED = []
+	var currentNode = false
+
+	OPEN.append( newAstarNode( getTile() ) )
 
 
-		# fjern
-		var pathMap = get_node('/root/Game/PathMap')
-		for _x in range(0, 28):
-			for _y in range(5, 36):
-				pathMap.set_cellv(Vector2(_x, _y), -1)
-		
+	var index = 0
+	while true:
+		index += 1
+		#if index > 10: break
 
-		asObj.main = []
-		asObj.new = []
-		asObj.wait = []
-		asObj.occupied = []
-	else:
-		var lastDirection = nextDirection
+		# finder node med den laveste f_cost
+		currentNode = false
+		var currentNodeIndex = 0
 
-		nextDirection = ''
+		var _index = 0
+		for node in OPEN:
+			if not currentNode or node.f_cost < currentNode.f_cost:
+				currentNode = node
+				currentNodeIndex = _index
 
-		if asObj.deb:
-			asObj.deb = false
-			print('Searching')
+			_index += 1
 
-			var i = 0
-			var offset = Vector2()
+		# fjerner den valgte node fra OPEN og tilføjer den i CLOSED
+		OPEN.remove(currentNodeIndex)
+		CLOSED.append(currentNode)
+
+
+		# Så er Pacman fundet og vi kan slappe helt af :)
+		if currentNode.position == getTile(Pacman.position):
+			break
+
+
+		for direction in getDirectionsAlt(currentNode.position - getTile()):
+			if not currentNode.parent:
+				print('asdsadasd')
+				if direction == reverseDirection(lastDirection):
+					continue
+
+
+			var newPosition = currentNode.position + directionVectors[direction]
+
+			var neighbourIsClosed = false
+			var neighbourIsOpen = false
+			var neighbourNode = false
+
+			for closedNode in CLOSED:
+				if closedNode.position == newPosition:
+					neighbourIsClosed = true
+					neighbourNode = closedNode
+
+			for openNode in OPEN:
+				if openNode.position == newPosition:
+					neighbourIsOpen = true
+
+
+			if neighbourIsClosed: continue
+
+			var newPath_isShorter = false
+			if neighbourNode:
+				if currentNode.pathLength + 8 < neighbourNode.pathLength:
+					newPath_isShorter = true
+
+			if newPath_isShorter or not neighbourIsOpen:
+
+				# set f_cost of neighbour
+				# set parent of neighbour to current
+				if neighbourNode:
+					var g_cost = abs( (newPosition - currentNode.position).length() ) + currentNode.g_cost
+					var h_cost = abs( (getTile(Pacman.position) - newPosition).length() )
+					
+					neighbourNode.parent = currentNode
+					neighbourNode.f_cost = g_cost + h_cost
+					neighbourNode.pathLength = currentNode.pathLength + 8
+
+				if not neighbourIsOpen:
+					OPEN.append(newAstarNode(newPosition, currentNode))
 			
 
 
-			while not foundPacman:
-				i += 1
-				if i > 3: break
+	# færdig
+	drawPaths(OPEN, CLOSED)
 
-				asObj.wait = asObj.new
-				asObj.new = []
 
-				if (asObj.main + asObj.new + asObj.wait).size() == 0:
-					aStar_getShortest(Vector2(), false, lastDirection)
-				else:
-					var index = 0
-					# udforkser først og fremmest de retninger der kommer tættere på...
-					for x in asObj.main:
-						index += 1
-						aStar_getShortest(x.offset, x.firstDirection, x.lastDirection)
-						asObj.main.remove(index-1)
+	var pathMap = get_node('/root/Game/PathMap')
+	var __index = 0
+	while true:
+		__index += 1
+		if __index > 50: break
 
-					if asObj.main.size() == 0:
-						index = 0
-						for x in asObj.wait:
-							index += 1
-							aStar_getShortest(x.offset, x.firstDirection, x.lastDirection)
-							asObj.wait.remove(index-1)
+		pathMap.set_cellv(currentNode.position, 2)
 
-			#ghost_chooseTile()
+		if not currentNode.parent.parent.parent:
+			print(currentNode.parent.position)
+			print(currentNode.position)
 
-func aStar_getShortest(offset=Vector2(), firstDirection=false, lastDirection=false):
-	var ghostPosition = position + offset*8
+			currentDirection = currentNode.position - currentNode.parent.position
+			for dir in directionVectors:
+				if directionVectors[dir] == currentDirection:
+					nextDirection = dir
+			break
 
-	var Pacman = get_node_or_null("/root/Game/Pacman")
-	var currentDistance = (Pacman.position - ghostPosition).length()
+		currentNode = currentNode.parent
 
-	# Tjekker om vi står oven på Pacman
-	if getTile(position + offset*8) == getTile(Pacman.position):
-		foundPacman = firstDirection
 
-	var objArray = []
+func newAstarNode(tile_position, lastNode=false):
+	var Pacman = get_node('/root/Game/Pacman')
 
-	# hvis dette sker, er det første gang aStar bliver kaldt
-	for direction in getDirectionsAlt(offset):
-		var newDistance = (Pacman.position - (ghostPosition + directionVectors[direction]*8)).length()
+	if not lastNode: lastNode = {
+		'position': tile_position,
+		'g_cost': 0,
+		'parent': false,
+		'pathLength': 0
+	}
 
-		var newPos = getTile() + offset + directionVectors[direction]
-		if reverseDirection(lastDirection) != direction and not (newPos in asObj.occupied):
-			asObj.occupied.append(newPos)
-			var pathMap = get_node('/root/Game/PathMap')
-			pathMap.set_cellv(getTile() + offset, 0)
+	# g_cost = længden fra node til start
+	var g_cost = abs( (tile_position - lastNode.position).length() ) + lastNode.g_cost
+	# h_cost = længden fra node til slut
+	var h_cost = abs( (getTile(Pacman.position) - tile_position).length() )
 
-			var _fd = firstDirection
-			if not _fd: _fd = direction
-
-			var obj = {
-				'firstDirection': _fd,
-				'lastDirection': direction,
-				'offset': offset + directionVectors[direction],
-				'score': currentDistance - newDistance
-			}
-
-			objArray.append(obj)
-
-	if objArray.size() == 0:
-		return
-
-	# udregn en gennemsnitlig score
-	var genScore = 0
-	for x in objArray:
-		genScore += x.score
-
-	genScore = genScore / (objArray.size()+2)
-
-	print('total: ', genScore)
-
-	var _index = 0
-	for x in objArray:
-		if x.score > 0 or x.score > genScore:
-			print(x)
-			asObj.main.push_back(x)
-		else:
-			asObj.new.push_back(x)
-		_index += 1
-
-			
+	return {
+		'position': tile_position,
+		'g_cost': g_cost,
+		'h_cost': h_cost,
+		'f_cost': g_cost + h_cost,
+		'parent': lastNode,
+		'pathLength': lastNode.pathLength + 8
+	}
 
 
 
@@ -503,9 +528,12 @@ func ghost_process(_delta):
 				Pacman.mode = 'die'
 				Game.pause()
 
-	if Input.is_action_just_pressed("ui_cancel"):
-		asObj.deb = true
+	if Input.is_action_just_pressed("ui_accept"):
+		asDeb = true
 		ghost_chooseTile()
+
+	if Input.is_action_just_pressed("ui_cancel"):
+		get_tree().quit()
 
 
 
