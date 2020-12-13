@@ -6,10 +6,12 @@ onready var movementSpeed = 40
 onready var defaultMovementSpeed = movementSpeed
 onready var currentDirection = Vector2(0, 0)
 onready var nextDirection = ''
+onready var lastDirection = nextDirection
+
+# Sørger for at spøgelset bevæger sig den korrekte længde ad gangen
 onready var moveDistance = 4
 onready var moveDistanceMax = moveDistance
 onready var ghost_correctMoveDistance_debiance = true
-onready var timer = 0
 
 onready var ghostIsAligned = false
 
@@ -27,8 +29,6 @@ onready var directionVectors = {
 	"left": Vector2(-1, 0),
 }
 
-var stuckForFrames = 0
-
 onready var enemyNames = ['Blinky', 'Pinky', 'Inky', 'Clyde']
 onready var isGhost = name in enemyNames
 onready var trapped = true
@@ -42,8 +42,6 @@ onready var switchTimerMax = 5
 onready var switchTimerDeb = true
 onready var switchTimer = 0
 
-
-onready var foundPacman = false
 onready var use_aStar = true
 
 onready var Game = get_node('/root/Game')
@@ -53,8 +51,8 @@ func _ready():
 	speed_scale = 3 # Animations hastighed
 	
 	# x: 112, y: 164 - Her skal Pacman stå
-	position.x = 8*12.5#14
-	position.y = 8*32.5#20.5
+	position.x = 8*14
+	position.y = 8*20.5
 
 	if isGhost:
 		defaultMovementSpeed -= 5
@@ -76,16 +74,15 @@ func _ready():
 			position.x = 8*14
 			position.y = 8*14.5 # 8*14.5
 			
-			# currentDirection = directionVectors['right']
-			# nextDirection = 'right'
+			currentDirection = directionVectors['right']
+			nextDirection = 'right'
 
-			currentDirection = Vector2()
-			nextDirection = ''
+			
 
 			moveDistance = 4
 			moveDistanceMax = 8
 			
-			mode = 'chase'
+			mode = 'scatter'
 			trapped = false
 	else:
 		mode = 'alive'
@@ -121,7 +118,7 @@ func _process(delta):
 
 	# Når pacman / spøgelset er stoppet med at bevæge sig, finder den en ny retning ud fra currentDirection og nextDirection
 	if moveDistance <= 0:
-		nextPossibleDirections = getDirections()
+		nextPossibleDirections = getDirectionsAlt()
 
 		if moveDistance < 0:
 			movementSpeed = defaultMovementSpeed
@@ -138,7 +135,7 @@ func _process(delta):
 		
 
 		# Sørger for at den bliver ved med at bevæge sig
-		if nextDirection in nextPossibleDirections or ignoreCollisionsMomentarily: # Vælger den nye retning, hvis den altså er gyldig
+		if nextDirection in nextPossibleDirections or (ignoreCollisionsMomentarily and nextDirection != ''): # Vælger den nye retning, hvis den altså er gyldig
 			ignoreCollisionsMomentarily = false
 			currentDirection = directionVectors[nextDirection] # Sætter retningen
 			if name == 'Pacman': moveDistanceMax = 8
@@ -161,6 +158,11 @@ func _process(delta):
 	if (isGhost or (not isGhost and mode != 'die')):
 		playing = lp != position # Hvis den stod stille, bliver animationen ikke afspillet	
 	
+	if lp == position and nextDirection != '':
+		if isGhost: 
+			ghost_chooseTile()
+			print("hello yes, I choose a dir")
+
 	if isGhost:
 		ghost_process(delta)
 	else:
@@ -238,8 +240,8 @@ func AStarChooseTile():
 
 
 		for direction in getDirectionsAlt(currentNode.position - getTile()):
-			if not currentNode.parent:
-				print('asdsadasd')
+			if index == 1:
+				# hvis retningen er lig den retning spøgelset kom fra
 				if direction == reverseDirection(lastDirection):
 					continue
 
@@ -297,8 +299,6 @@ func AStarChooseTile():
 		pathMap.set_cellv(currentNode.position, 2)
 
 		if not currentNode.parent.parent.parent:
-			print(currentNode.parent.position)
-			print(currentNode.position)
 
 			currentDirection = currentNode.position - currentNode.parent.position
 			for dir in directionVectors:
@@ -458,6 +458,7 @@ func ghost_chooseTile():
 
 			
 			allowCorrections = true
+			# Jeg ville ønske jeg vidste hvad fanden jeg tænkte...
 			if ghost_correctMoveDistance_debiance:
 				ghost_correctMoveDistance_debiance = false
 				moveDistanceMax = 4
@@ -506,8 +507,7 @@ func ghost_process(_delta):
 
 	# Sørger for at den skifter fra scatter til chase, men er kun gyldigt for Blinky
 	if switchTimer > 0:
-		pass
-		#TODO: switchTimer -= _delta
+		switchTimer -= _delta
 	elif switchTimer != 0:
 		switchTimer = 0
 		if mode == 'scatter':
@@ -533,7 +533,8 @@ func ghost_process(_delta):
 		ghost_chooseTile()
 
 	if Input.is_action_just_pressed("ui_cancel"):
-		get_tree().quit()
+		keepMoving = not keepMoving
+		#get_tree().quit()
 
 
 
@@ -544,7 +545,7 @@ func pacman_process(_delta):
 			# Laver et ønske om den næste retning.
 			nextDirection = direction
 			if currentDirection == Vector2.ZERO:
-				if direction in getDirections():
+				if direction in getDirectionsAlt():
 					currentDirection = directionVectors[direction]
 
 			# Hvis den omvendte retning ønskes og den er i bevægelse

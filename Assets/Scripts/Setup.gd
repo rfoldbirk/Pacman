@@ -1,7 +1,7 @@
 extends Node2D
 
 
-onready var enemyNames = ['Blinky'] #, 'Pinky', 'Inky', 'Clyde']
+onready var enemyNames = ['Blinky', 'Pinky', 'Inky', 'Clyde']
 
 
 var points = 0
@@ -12,11 +12,15 @@ var switchTimer = 0
 
 onready var Map = get_node('/root/Game/Map')
 onready var PointMap = get_node('/root/Game/PointMap')
+onready var PathMap = get_node('/root/Game/PathMap')
 
+onready var ghostsCreated = false
 
+onready var releaseTimer = 0
+onready var releaseTimerMax = 5
 
 func _ready():
-	spawn(true)
+	pass
 
 
 func _process(delta):
@@ -38,6 +42,19 @@ func _process(delta):
 			firstStageFright = true
 			frightened(false) # Gør spøgelserne normale
 
+
+	releaseTimer -= delta
+	if releaseTimer <= 0:
+		releaseTimer = releaseTimerMax
+		for Name in enemyNames:
+			var Ghost = get_node_or_null('/root/Game/' + Name)
+			if Ghost and Ghost.released: 
+				continue
+			else:
+				if Ghost:
+					Ghost.trapped = false
+					Ghost.released = true
+					break
 
 
 func pause(resume=false):
@@ -67,7 +84,7 @@ func frightened(value=true):
 	for Name in enemyNames:
 		var ghost = get_node_or_null('/root/Game/' + Name)
 		if ghost:
-			if ghost.mode != 'die':
+			if ghost.mode != 'die' and not ghost.trapped:
 				if value:
 					ghost.mode = 'frightened'
 					frightenedTimer = 7
@@ -100,8 +117,14 @@ func spawn(resetPoints=false):
 	if resetPoints:
 		points = 0
 
+	for x in range(0, 40):
+		for y in range(0, 40):
+			PathMap.set_cellv(Vector2(x, y), -1)
+
+	releaseTimer = releaseTimerMax
+
 	switchTimer = 50
-	freezeTimer = 0.1
+	freezeTimer = 0.5
 	frightenedTimer = 0
 	# Reset Pacman og spøgelserne
 
@@ -114,12 +137,21 @@ func spawn(resetPoints=false):
 
 	
 	var Pacman = get_node("Pacman")
-	Pacman.set_z_index(0)
+	Pacman.setup()
+	Pacman.set_z_index(-1)
+
+
 	
 	for Name in enemyNames:
-		var newGhost = Pacman.duplicate()
-		newGhost.name = Name
-		
-		add_child(newGhost)
+		if ghostsCreated:
+			var Node = get_node_or_null('/root/Game/' + Name)
+			Node.setup()
+		else:
+			var newGhost = Pacman.duplicate()
+			newGhost.name = Name
+			
+			add_child(newGhost)
 
-	Pacman.set_z_index(1)
+	ghostsCreated = true
+
+	Pacman.set_z_index(0)

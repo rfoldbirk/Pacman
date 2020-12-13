@@ -1,8 +1,10 @@
-extends Node2D
+extends Control
 
 
-onready var title = get_node('/root/Menu/Title')
-onready var btns = get_node('/root/Menu/Buttons')
+onready var game = get_node('/root/Game')
+onready var menu = get_node('/root/Game/Menu')
+onready var title = get_node('/root/Game/Menu/Title')
+onready var btns = get_node('/root/Game/Menu/Buttons')
 
 
 onready var Menu = {
@@ -10,12 +12,12 @@ onready var Menu = {
 	'_index': 0,
 	
 	'_vars': {
-		'A*': 0,
-		'HS': false
+		'A*': false,
+		'SR': false
 	},
 	
 	'Main': [ 'Play', 'Settings', 'Quit' ],
-	'Settings': [ 'Nr. A*: ${A*}', 'Half Speed: ${HS}', 'Back' ]
+	'Settings': [ 'Use A*: ${A*}', 'Show Route: ${SR}', 'Back' ]
 }
 
 func _ready():
@@ -40,21 +42,20 @@ func _process(delta):
 		if Menu._current == 'Main':
 			if item == 'Quit':
 				get_tree().quit()
-			elif item == 'Play':
-				get_tree().change_scene("res://Scenes/Game.tscn")
+			elif item == 'Play' and menu.visible:
+				game.spawn(true)
+				menu.visible = false
 			elif item == 'Settings':
 				Menu._current = item
 
 		# Indstillinger
 		if Menu._current == 'Settings':
 			forceUpdate = true
-			if item == 'Nr. A*: ${A*}':
-				Menu._vars['A*'] += 1
-				if Menu._vars['A*'] > 4:
-					Menu._vars['A*'] = 0
+			if item == 'Use A*: ${A*}':
+				Menu._vars['A*'] = not Menu._vars['A*']
 					
-			elif item == 'Half Speed: ${HS}':
-				Menu._vars['HS'] = not Menu._vars['HS']
+			elif item == 'Show Route: ${SR}':
+				Menu._vars['SR'] = not Menu._vars['SR']
 				
 			elif item == 'Back':
 				Menu._current = 'Main'
@@ -71,7 +72,13 @@ func _process(delta):
 	
 	
 	
-	
+
+func reset():
+	Menu._current = 'Main'
+	Menu._index = 0
+
+	setText()
+
 	
 func setText():
 	btns.text = ''
